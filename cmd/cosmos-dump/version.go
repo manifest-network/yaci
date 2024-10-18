@@ -15,7 +15,3 @@ var versionCmd = &cobra.Command{
 		fmt.Println("cosmos-dump", Version)
 	},
 }
-
-func init() {
-	rootCmd.AddCommand(versionCmd)
-}

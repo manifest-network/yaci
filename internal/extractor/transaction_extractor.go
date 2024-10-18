@@ -1,4 +1,4 @@
-package processing
+package extractor
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
-func processTransactions(ctx context.Context, conn *grpc.ClientConn, data map[string]interface{}, txMethodDescriptor protoreflect.MethodDescriptor, txFullMethodName string, blockHeight uint64, out string, uo protojson.UnmarshalOptions, mo protojson.MarshalOptions) error {
+func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[string]interface{}, txMethodDescriptor protoreflect.MethodDescriptor, txFullMethodName string, blockHeight uint64, out string, uo protojson.UnmarshalOptions, mo protojson.MarshalOptions) error {
 	blockData, exists := data["block"].(map[string]interface{})
 	if !exists || blockData == nil {
 		return nil

@@ -1,4 +1,4 @@
-package processing
+package extractor
 
 import (
 	"context"
@@ -21,8 +21,8 @@ const (
 	txMethodFullName    = "cosmos.tx.v1beta1.Service.GetTx"
 )
 
-// ProcessBlocksAndTransactions processes blocks and their transactions.
-func ProcessBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, out string) error {
+// ExtractBlocksAndTransactions processes blocks and their transactions.
+func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, out string) error {
 	files := resolver.Files()
 
 	blockServiceName, blockMethodNameOnly, err := parseMethodFullName(blockMethodFullName)
@@ -86,7 +86,7 @@ func ProcessBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 		}
 
 		// Get txs from block, if any
-		err = processTransactions(ctx, conn, data, txMethodDescriptor, txFullMethodName, i, out, uo, mo)
+		err = extractTransactions(ctx, conn, data, txMethodDescriptor, txFullMethodName, i, out, uo, mo)
 		if err != nil {
 			return err
 		}
