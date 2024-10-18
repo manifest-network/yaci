@@ -24,22 +24,37 @@ go install github.com/liftedinit/cosmos-dump/cmd/cosmos-dump@latest
 ## Usage
 The basic usage of the cosmos-dump tool is as follows:
 ```shell
-cosmos-dump [address] [flags]
+cosmos-dump [command] [address] [flags]
 ```
 
-## Flags
+## Commands
+
+- `extract` - Extracts blockchain data to JSON files.
+- `export-tsv` - Export extracted blockchain data to TSV files.
+
+### Extract Command
+
+#### Flags
 
 - `-s`, `--start` - The starting block height to extract data from (default: 1)
 - `-e`, `--stop` - The stopping block height to extract data from (default: 1)
 - `-o`, `--out` - The output directory to store the extracted data (default: "out")
 
-## Example
+#### Example
 
 ```shell
-cosmos-dump localhost:9090 -s 1 -e 100 -o ./data
+cosmos-dump extract localhost:9090 -s 1 -e 100 -o ./data
 ```
 
 This command will connect to the gRPC server running on `localhost:9090`, extract data from block height `1` to `100`, and store the extracted data in the `data` directory.
+
+### Export-tsv Command
+
+#### Example
+
+```shell
+cosmos-dump export-tsv ./data ./tsv
+```
 
 ## License
 
