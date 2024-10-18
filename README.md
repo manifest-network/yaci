@@ -4,6 +4,10 @@
 
 Tested with Cosmos SDK v0.50.x.
 
+## Use-case
+
+Off-chain indexing of block & transaction data in order to store the extracted data to a (PostgreSQL) database.
+
 ## Features
 
 - Extract block and transaction chain data to JSON files.
