@@ -5,8 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/liftedinit/cosmos-dump/internal/exporter"
 	"github.com/spf13/cobra"
+
+	"github.com/liftedinit/cosmos-dump/internal/exporter"
 )
 
 var exportTSVCmd = &cobra.Command{
