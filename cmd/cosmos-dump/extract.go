@@ -13,6 +13,13 @@ import (
 	"github.com/liftedinit/cosmos-dump/internal/utils"
 )
 
+var (
+	start    uint64
+	stop     uint64
+	out      string
+	insecure bool
+)
+
 var extractCmd = &cobra.Command{
 	Use:   "extract [address] [flags]",
 	Short: "Extract block and transaction chain data to JSON files.",
@@ -33,7 +40,7 @@ var extractCmd = &cobra.Command{
 		ctx := context.Background()
 
 		// Initialize gRPC client and reflection client
-		grpcConn, refClient := client.NewGRPCClients(ctx, address)
+		grpcConn, refClient := client.NewGRPCClients(ctx, address, insecure)
 		defer grpcConn.Close()
 
 		// Fetch all file descriptors
@@ -65,4 +72,5 @@ func init() {
 	extractCmd.Flags().Uint64VarP(&start, "start", "s", 1, "Start block height")
 	extractCmd.Flags().Uint64VarP(&stop, "stop", "e", 1, "Stop block height")
 	extractCmd.Flags().StringVarP(&out, "out", "o", "out", "Output directory")
+	extractCmd.Flags().BoolVarP(&insecure, "insecure", "k", false, "Skip TLS certificate verification")
 }

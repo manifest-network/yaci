@@ -7,11 +7,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	start uint64
-	stop  uint64
-	out   string
-)
 var rootCmd = &cobra.Command{
 	Use:   "cosmos-dump",
 	Short: "Extract chain data",
@@ -19,7 +14,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	// Register the extract command
 	rootCmd.AddCommand(extractCmd)
 	rootCmd.AddCommand(exportTSVCmd)
 	rootCmd.AddCommand(versionCmd)
