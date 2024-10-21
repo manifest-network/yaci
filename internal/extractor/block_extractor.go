@@ -4,16 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
-
-	"google.golang.org/protobuf/reflect/protoreflect"
-
-	"github.com/liftedinit/cosmos-dump/internal/reflection"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/liftedinit/cosmos-dump/internal/models"
+	"github.com/liftedinit/cosmos-dump/internal/output"
+	"github.com/liftedinit/cosmos-dump/internal/reflection"
 )
 
 const (
@@ -21,8 +21,7 @@ const (
 	txMethodFullName    = "cosmos.tx.v1beta1.Service.GetTx"
 )
 
-// ExtractBlocksAndTransactions processes blocks and their transactions.
-func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, out string) error {
+func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler) error {
 	files := resolver.Files()
 
 	blockServiceName, blockMethodNameOnly, err := parseMethodFullName(blockMethodFullName)
@@ -80,23 +79,28 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 			return fmt.Errorf("failed to marshal block response: %v", err)
 		}
 
+		block := &models.Block{
+			ID:   i,
+			Data: blockJsonBytes,
+		}
+
+		err = outputHandler.WriteBlock(ctx, block)
+		if err != nil {
+			return fmt.Errorf("failed to write block: %v", err)
+		}
+
+		// Process transactions
 		var data map[string]interface{}
 		if err := json.Unmarshal(blockJsonBytes, &data); err != nil {
 			return fmt.Errorf("failed to unmarshal block JSON: %v", err)
 		}
 
 		// Get txs from block, if any
-		err = extractTransactions(ctx, conn, data, txMethodDescriptor, txFullMethodName, i, out, uo, mo)
+		err = extractTransactions(ctx, conn, data, txMethodDescriptor, txFullMethodName, i, outputHandler, uo, mo)
 		if err != nil {
 			return err
 		}
 
-		// Write blockJsonBytes to file
-		fileName := fmt.Sprintf("%s/block/block_%010d.json", out, i)
-		err = os.WriteFile(fileName, blockJsonBytes, 0644)
-		if err != nil {
-			return fmt.Errorf("failed to write block file: %v", err)
-		}
 	}
 
 	return nil

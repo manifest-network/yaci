@@ -15,7 +15,6 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(extractCmd)
-	rootCmd.AddCommand(exportTSVCmd)
 	rootCmd.AddCommand(versionCmd)
 }
 
