@@ -6,15 +6,18 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"os"
 
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/liftedinit/cosmos-dump/internal/models"
+	"github.com/liftedinit/cosmos-dump/internal/output"
 )
 
-func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[string]interface{}, txMethodDescriptor protoreflect.MethodDescriptor, txFullMethodName string, blockHeight uint64, out string, uo protojson.UnmarshalOptions, mo protojson.MarshalOptions) error {
+func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[string]interface{}, txMethodDescriptor protoreflect.MethodDescriptor, txFullMethodName string, blockHeight uint64, outputHandler output.OutputHandler, uo protojson.UnmarshalOptions, mo protojson.MarshalOptions) error {
 	blockData, exists := data["block"].(map[string]interface{})
 	if !exists || blockData == nil {
 		return nil
@@ -37,7 +40,7 @@ func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[st
 		}
 		decodedBytes, err := base64.StdEncoding.DecodeString(txStr)
 		if err != nil {
-			return fmt.Errorf("failed to decode tx: %v", err)
+			return errors.WithMessage(err, "failed to decode tx")
 		}
 		hash := sha256.Sum256(decodedBytes)
 		hashStr := hex.EncodeToString(hash[:])
@@ -45,24 +48,27 @@ func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[st
 		txInputMsg := dynamicpb.NewMessage(txMethodDescriptor.Input())
 		txJsonParams := fmt.Sprintf(`{"hash": "%s"}`, hashStr)
 		if err := uo.Unmarshal([]byte(txJsonParams), txInputMsg); err != nil {
-			return fmt.Errorf("failed to parse tx input parameters: %v", err)
+			return errors.WithMessage(err, "failed to parse tx input parameters")
 		}
 		txOutputMsg := dynamicpb.NewMessage(txMethodDescriptor.Output())
 
 		err = conn.Invoke(ctx, txFullMethodName, txInputMsg, txOutputMsg)
 		if err != nil {
-			return fmt.Errorf("error invoking tx method: %v", err)
+			return errors.WithMessage(err, "error invoking tx method")
 		}
 		txJsonBytes, err := mo.Marshal(txOutputMsg)
 		if err != nil {
-			return fmt.Errorf("failed to marshal tx response: %v", err)
+			return errors.WithMessage(err, "failed to marshal tx response")
 		}
 
-		// Write txJsonBytes to file
-		fileName := fmt.Sprintf("%s/txs/tx_%010d_%s.json", out, blockHeight, hashStr)
-		err = os.WriteFile(fileName, txJsonBytes, 0644)
+		transaction := &models.Transaction{
+			Hash: hashStr,
+			Data: txJsonBytes,
+		}
+
+		err = outputHandler.WriteTransaction(ctx, transaction)
 		if err != nil {
-			return fmt.Errorf("failed to write tx file: %v", err)
+			return errors.WithMessage(err, "failed to write transaction")
 		}
 	}
 

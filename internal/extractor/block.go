@@ -4,16 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
+	"log/slog"
 	"strings"
 
-	"google.golang.org/protobuf/reflect/protoreflect"
-
-	"github.com/liftedinit/cosmos-dump/internal/reflection"
-
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/liftedinit/cosmos-dump/internal/models"
+	"github.com/liftedinit/cosmos-dump/internal/output"
+	"github.com/liftedinit/cosmos-dump/internal/reflection"
 )
 
 const (
@@ -21,30 +23,29 @@ const (
 	txMethodFullName    = "cosmos.tx.v1beta1.Service.GetTx"
 )
 
-// ExtractBlocksAndTransactions processes blocks and their transactions.
-func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, out string) error {
+func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler) error {
 	files := resolver.Files()
 
 	blockServiceName, blockMethodNameOnly, err := parseMethodFullName(blockMethodFullName)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "failed to parse block method full name")
 	}
 
 	blockMethodDescriptor, err := reflection.FindMethodDescriptor(files, blockServiceName, blockMethodNameOnly)
 	if err != nil {
-		return fmt.Errorf("failed to find block method descriptor: %v", err)
+		return errors.WithMessage(err, "failed to find block method descriptor")
 	}
 
 	blockFullMethodName := buildFullMethodName(blockMethodDescriptor)
 
 	txServiceName, txMethodNameOnly, err := parseMethodFullName(txMethodFullName)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "failed to parse tx method full name")
 	}
 
 	txMethodDescriptor, err := reflection.FindMethodDescriptor(files, txServiceName, txMethodNameOnly)
 	if err != nil {
-		return fmt.Errorf("failed to find tx method descriptor: %v", err)
+		return errors.WithMessage(err, "failed to find tx method descriptor")
 	}
 
 	txFullMethodName := buildFullMethodName(txMethodDescriptor)
@@ -57,14 +58,25 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 		Resolver: resolver,
 	}
 
+	if start == stop {
+		slog.Info("Extracting blocks and transactions", "height", start)
+
+	} else {
+		slog.Info("Extracting blocks and transactions", "range", fmt.Sprintf("[%d, %d]", start, stop))
+
+	}
 	for i := start; i <= stop; i++ {
+		// Log progress for large ranges
+		if i%1000 == 0 {
+			slog.Info("Still processing blocks...", "height", i)
+		}
 		blockJsonParams := fmt.Sprintf(`{"height": %d}`, i)
 
 		// Create the request message
 		blockInputMsg := dynamicpb.NewMessage(blockMethodDescriptor.Input())
 
 		if err := uo.Unmarshal([]byte(blockJsonParams), blockInputMsg); err != nil {
-			return fmt.Errorf("failed to parse block input parameters: %v", err)
+			return errors.WithMessage(err, "failed to parse block input parameters")
 		}
 
 		// Create the response message
@@ -72,43 +84,57 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 
 		err = conn.Invoke(ctx, blockFullMethodName, blockInputMsg, blockOutputMsg)
 		if err != nil {
-			return fmt.Errorf("error invoking block method: %v", err)
+			return errors.WithMessage(err, "error invoking block method")
 		}
 
 		blockJsonBytes, err := mo.Marshal(blockOutputMsg)
 		if err != nil {
-			return fmt.Errorf("failed to marshal block response: %v", err)
+			return errors.WithMessage(err, "failed to marshal block response")
 		}
 
+		block := &models.Block{
+			ID:   i,
+			Data: blockJsonBytes,
+		}
+
+		err = outputHandler.WriteBlock(ctx, block)
+		if err != nil {
+			return errors.WithMessage(err, "failed to write block")
+		}
+
+		// Process transactions
 		var data map[string]interface{}
 		if err := json.Unmarshal(blockJsonBytes, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal block JSON: %v", err)
+			return errors.WithMessage(err, "failed to unmarshal block JSON")
 		}
 
 		// Get txs from block, if any
-		err = extractTransactions(ctx, conn, data, txMethodDescriptor, txFullMethodName, i, out, uo, mo)
+		err = extractTransactions(ctx, conn, data, txMethodDescriptor, txFullMethodName, i, outputHandler, uo, mo)
 		if err != nil {
 			return err
 		}
 
-		// Write blockJsonBytes to file
-		fileName := fmt.Sprintf("%s/block/block_%010d.json", out, i)
-		err = os.WriteFile(fileName, blockJsonBytes, 0644)
-		if err != nil {
-			return fmt.Errorf("failed to write block file: %v", err)
-		}
 	}
 
 	return nil
 }
 
 func parseMethodFullName(methodFullName string) (string, string, error) {
+	if methodFullName == "" {
+		return "", "", fmt.Errorf("method full name is empty")
+	}
+
 	lastDot := strings.LastIndex(methodFullName, ".")
 	if lastDot == -1 {
-		return "", "", fmt.Errorf("invalid method name: %s", methodFullName)
+		return "", "", fmt.Errorf("no dot found in method full name")
 	}
 	serviceName := methodFullName[:lastDot]
 	methodNameOnly := methodFullName[lastDot+1:]
+
+	if serviceName == "" || methodNameOnly == "" {
+		return "", "", fmt.Errorf("invalid method full name format")
+	}
+
 	return serviceName, methodNameOnly, nil
 }
 

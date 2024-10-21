@@ -2,75 +2,88 @@ package cosmos_dump
 
 import (
 	"context"
-	"fmt"
-	"net/url"
-
-	"github.com/spf13/cobra"
+	"log/slog"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/liftedinit/cosmos-dump/internal/client"
 	"github.com/liftedinit/cosmos-dump/internal/extractor"
+	"github.com/liftedinit/cosmos-dump/internal/output"
 	"github.com/liftedinit/cosmos-dump/internal/reflection"
-	"github.com/liftedinit/cosmos-dump/internal/utils"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 )
 
 var (
-	start    uint64
-	stop     uint64
-	out      string
-	insecure bool
+	start     uint64
+	stop      uint64
+	insecure  bool
+	live      bool
+	blockTime uint64
 )
 
-var extractCmd = &cobra.Command{
-	Use:   "extract [address] [flags]",
-	Short: "Extract block and transaction chain data to JSON files.",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		address := args[0]
-		_, err := url.ParseRequestURI(address)
-		if err != nil {
-			return fmt.Errorf("invalid address: %v", err)
-		}
-
-		// Setup output directories
-		err = utils.SetupOutputDirectories(out)
-		if err != nil {
-			return fmt.Errorf("failed to setup output directories: %v", err)
-		}
-
-		ctx := context.Background()
-
-		// Initialize gRPC client and reflection client
-		grpcConn, refClient := client.NewGRPCClients(ctx, address, insecure)
-		defer grpcConn.Close()
-
-		// Fetch all file descriptors
-		descriptors, err := reflection.FetchAllDescriptors(ctx, refClient)
-		if err != nil {
-			return fmt.Errorf("failed to fetch descriptors: %v", err)
-		}
-
-		// Build the file descriptor set
-		files, err := reflection.BuildFileDescriptorSet(descriptors)
-		if err != nil {
-			return fmt.Errorf("failed to build descriptor set: %v", err)
-		}
-
-		// Create a custom resolver
-		resolver := reflection.NewCustomResolver(files, refClient, ctx)
-
-		// Process blocks and transactions
-		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, out)
-		if err != nil {
-			return fmt.Errorf("failed to process blocks and transactions: %v", err)
-		}
-
-		return nil
-	},
+var ExtractCmd = &cobra.Command{
+	Use:   "extract",
+	Short: "Extract chain data to various output formats",
+	Long:  `Extract blockchain data and output it in the specified format.`,
 }
 
 func init() {
-	extractCmd.Flags().Uint64VarP(&start, "start", "s", 1, "Start block height")
-	extractCmd.Flags().Uint64VarP(&stop, "stop", "e", 1, "Stop block height")
-	extractCmd.Flags().StringVarP(&out, "out", "o", "out", "Output directory")
-	extractCmd.Flags().BoolVarP(&insecure, "insecure", "k", false, "Skip TLS certificate verification")
+	ExtractCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Skip TLS certificate verification (INSECURE)")
+	ExtractCmd.PersistentFlags().BoolVar(&live, "live", false, "Enable live monitoring")
+	ExtractCmd.PersistentFlags().Uint64VarP(&start, "start", "s", 1, "Start block height")
+	ExtractCmd.PersistentFlags().Uint64VarP(&stop, "stop", "e", 1, "Stop block height")
+	ExtractCmd.PersistentFlags().Uint64VarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
+
+	ExtractCmd.AddCommand(jsonCmd)
+	ExtractCmd.AddCommand(tsvCmd)
+	ExtractCmd.AddCommand(postgresCmd)
+}
+
+func extract(address string, outputHandler output.OutputHandler) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Handle interrupt signals for graceful shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		slog.Info("Received interrupt signal, shutting down...")
+		cancel()
+	}()
+
+	// Initialize gRPC client and reflection client
+	grpcConn, refClient := client.NewGRPCClients(ctx, address, insecure)
+	defer grpcConn.Close()
+
+	// Fetch descriptors and build resolver
+	descriptors, err := reflection.FetchAllDescriptors(ctx, refClient)
+	if err != nil {
+		return errors.WithMessage(err, "failed to fetch descriptors")
+	}
+
+	files, err := reflection.BuildFileDescriptorSet(descriptors)
+	if err != nil {
+		return errors.WithMessage(err, "failed to build descriptor set")
+	}
+
+	resolver := reflection.NewCustomResolver(files, refClient, ctx)
+
+	if live {
+		// Live mode
+		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcConn, resolver, start, outputHandler, blockTime)
+		if err != nil {
+			return errors.WithMessage(err, "failed to process live blocks and transactions")
+		}
+	} else {
+		// Batch mode
+		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, outputHandler)
+		if err != nil {
+			return errors.WithMessage(err, "failed to process blocks and transactions")
+		}
+	}
+
+	return nil
 }

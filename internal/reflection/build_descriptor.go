@@ -3,6 +3,7 @@ package reflection
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -21,18 +22,18 @@ func BuildFileDescriptorSet(descriptors []*descriptorpb.FileDescriptorProto) (*p
 	// Perform a topological sort of the file descriptors
 	sortedDescriptors, err := topologicalSort(fdMap)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessage(err, "failed to sort file descriptors")
 	}
 
 	// Register the sorted descriptors
 	for _, fdProto := range sortedDescriptors {
 		fd, err := protodesc.NewFile(fdProto, files)
 		if err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "failed to create file descriptor")
 		}
 
 		if err := files.RegisterFile(fd); err != nil {
-			return nil, err
+			return nil, errors.WithMessage(err, "failed to register file descriptor")
 		}
 	}
 
