@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -26,24 +28,24 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 
 	blockServiceName, blockMethodNameOnly, err := parseMethodFullName(blockMethodFullName)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "failed to parse block method full name")
 	}
 
 	blockMethodDescriptor, err := reflection.FindMethodDescriptor(files, blockServiceName, blockMethodNameOnly)
 	if err != nil {
-		return fmt.Errorf("failed to find block method descriptor: %v", err)
+		return errors.WithMessage(err, "failed to find block method descriptor")
 	}
 
 	blockFullMethodName := buildFullMethodName(blockMethodDescriptor)
 
 	txServiceName, txMethodNameOnly, err := parseMethodFullName(txMethodFullName)
 	if err != nil {
-		return err
+		return errors.WithMessage(err, "failed to parse tx method full name")
 	}
 
 	txMethodDescriptor, err := reflection.FindMethodDescriptor(files, txServiceName, txMethodNameOnly)
 	if err != nil {
-		return fmt.Errorf("failed to find tx method descriptor: %v", err)
+		return errors.WithMessage(err, "failed to find tx method descriptor")
 	}
 
 	txFullMethodName := buildFullMethodName(txMethodDescriptor)
@@ -56,14 +58,25 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 		Resolver: resolver,
 	}
 
+	if start == stop {
+		slog.Info("Extracting blocks and transactions", "height", start)
+
+	} else {
+		slog.Info("Extracting blocks and transactions", "range", fmt.Sprintf("[%d, %d]", start, stop))
+
+	}
 	for i := start; i <= stop; i++ {
+		// Log progress for large ranges
+		if i%1000 == 0 {
+			slog.Info("Still processing blocks...", "height", i)
+		}
 		blockJsonParams := fmt.Sprintf(`{"height": %d}`, i)
 
 		// Create the request message
 		blockInputMsg := dynamicpb.NewMessage(blockMethodDescriptor.Input())
 
 		if err := uo.Unmarshal([]byte(blockJsonParams), blockInputMsg); err != nil {
-			return fmt.Errorf("failed to parse block input parameters: %v", err)
+			return errors.WithMessage(err, "failed to parse block input parameters")
 		}
 
 		// Create the response message
@@ -71,12 +84,12 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 
 		err = conn.Invoke(ctx, blockFullMethodName, blockInputMsg, blockOutputMsg)
 		if err != nil {
-			return fmt.Errorf("error invoking block method: %v", err)
+			return errors.WithMessage(err, "error invoking block method")
 		}
 
 		blockJsonBytes, err := mo.Marshal(blockOutputMsg)
 		if err != nil {
-			return fmt.Errorf("failed to marshal block response: %v", err)
+			return errors.WithMessage(err, "failed to marshal block response")
 		}
 
 		block := &models.Block{
@@ -86,13 +99,13 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 
 		err = outputHandler.WriteBlock(ctx, block)
 		if err != nil {
-			return fmt.Errorf("failed to write block: %v", err)
+			return errors.WithMessage(err, "failed to write block")
 		}
 
 		// Process transactions
 		var data map[string]interface{}
 		if err := json.Unmarshal(blockJsonBytes, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal block JSON: %v", err)
+			return errors.WithMessage(err, "failed to unmarshal block JSON")
 		}
 
 		// Get txs from block, if any
@@ -107,12 +120,21 @@ func ExtractBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, re
 }
 
 func parseMethodFullName(methodFullName string) (string, string, error) {
+	if methodFullName == "" {
+		return "", "", fmt.Errorf("method full name is empty")
+	}
+
 	lastDot := strings.LastIndex(methodFullName, ".")
 	if lastDot == -1 {
-		return "", "", fmt.Errorf("invalid method name: %s", methodFullName)
+		return "", "", fmt.Errorf("no dot found in method full name")
 	}
 	serviceName := methodFullName[:lastDot]
 	methodNameOnly := methodFullName[lastDot+1:]
+
+	if serviceName == "" || methodNameOnly == "" {
+		return "", "", fmt.Errorf("invalid method full name format")
+	}
+
 	return serviceName, methodNameOnly, nil
 }
 

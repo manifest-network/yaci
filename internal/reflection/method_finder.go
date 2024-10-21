@@ -22,12 +22,12 @@ func FindMethodDescriptor(files *protoregistry.Files, serviceName, methodName st
 					if string(m.Name()) == methodName {
 						methodDesc = m
 						found = true
-						return false // Stop iteration
+						return false
 					}
 				}
 			}
 		}
-		return true // Continue iteration
+		return true
 	})
 	if !found {
 		return nil, fmt.Errorf("method %s not found in service %s", methodName, serviceName)

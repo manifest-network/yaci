@@ -2,7 +2,7 @@ package client
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"os"
 
 	"google.golang.org/grpc"
@@ -22,7 +22,7 @@ func NewGRPCClients(ctx context.Context, address string, insecure bool) (*grpc.C
 
 	conn, err := grpc.DialContext(ctx, address, opts...)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to connect: %v\n", err)
+		slog.Error("Failed to connect", "error", err)
 		os.Exit(1)
 	}
 

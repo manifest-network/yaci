@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
 	reflection "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
@@ -52,13 +52,13 @@ func (r *CustomResolver) FindMessageByName(name protoreflect.FullName) (protoref
 
 	// If not found, attempt to fetch the descriptor via reflection
 	if err := r.fetchDescriptorBySymbol(string(name)); err != nil {
-		return nil, err
+		return nil, errors.WithMessagef(err, "failed to fetch descriptor for symbol %s", name)
 	}
 
 	// Try to find the message again after fetching
 	desc, err := r.files.FindDescriptorByName(name)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithMessagef(err, "failed to find message by name %s", name)
 	}
 
 	if desc != nil {
@@ -79,12 +79,12 @@ func (r *CustomResolver) FindMessageByURL(url string) (protoreflect.MessageType,
 }
 
 // FindExtensionByName is not implemented.
-func (r *CustomResolver) FindExtensionByName(field protoreflect.FullName) (protoreflect.ExtensionType, error) {
+func (r *CustomResolver) FindExtensionByName(_ protoreflect.FullName) (protoreflect.ExtensionType, error) {
 	return nil, protoregistry.NotFound
 }
 
 // FindExtensionByNumber is not implemented.
-func (r *CustomResolver) FindExtensionByNumber(message protoreflect.FullName, fieldNumber protoreflect.FieldNumber) (protoreflect.ExtensionType, error) {
+func (r *CustomResolver) FindExtensionByNumber(_ protoreflect.FullName, _ protoreflect.FieldNumber) (protoreflect.ExtensionType, error) {
 	return nil, protoregistry.NotFound
 }
 
@@ -94,99 +94,40 @@ func (r *CustomResolver) fetchDescriptorBySymbol(symbol string) error {
 	}
 	r.seenSymbols[symbol] = true
 
+	// Create the request to fetch file descriptors containing the symbol
 	req := &reflection.ServerReflectionRequest{
 		MessageRequest: &reflection.ServerReflectionRequest_FileContainingSymbol{
 			FileContainingSymbol: symbol,
 		},
 	}
 
-	stream, err := r.refClient.ServerReflectionInfo(r.ctx)
+	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.refClient, req)
 	if err != nil {
-		return err
+		return errors.WithMessagef(err, "failed to fetch file descriptors containing symbol %s", symbol)
 	}
 
-	if err := stream.Send(req); err != nil {
-		return err
-	}
-
-	resp, err := stream.Recv()
-	if err != nil {
-		return err
-	}
-
-	fdResponse, ok := resp.MessageResponse.(*reflection.ServerReflectionResponse_FileDescriptorResponse)
-	if !ok {
-		return fmt.Errorf("unexpected response: %v", resp)
-	}
-
-	// Build and register the new descriptors
-	for _, fdBytes := range fdResponse.FileDescriptorResponse.FileDescriptorProto {
-		fdProto := &descriptorpb.FileDescriptorProto{}
-		if err := proto.Unmarshal(fdBytes, fdProto); err != nil {
-			return err
-		}
-
-		name := fdProto.GetName()
-		if _, err := r.files.FindFileByPath(name); err == nil {
-			// Already registered
-			continue
-		}
-
-		// Recursively fetch dependencies
-		for _, dep := range fdProto.Dependency {
-			if _, err := r.files.FindFileByPath(dep); err != nil {
-				if err := r.fetchDescriptorByName(dep); err != nil {
-					return err
-				}
-			}
-		}
-
-		fd, err := protodesc.NewFile(fdProto, r.files)
-		if err != nil {
-			return err
-		}
-
-		if err := r.files.RegisterFile(fd); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return r.processFileDescriptors(fdProtos)
 }
 
 func (r *CustomResolver) fetchDescriptorByName(name string) error {
+	// Create the request to fetch file descriptors by filename
 	req := &reflection.ServerReflectionRequest{
 		MessageRequest: &reflection.ServerReflectionRequest_FileByFilename{
 			FileByFilename: name,
 		},
 	}
 
-	stream, err := r.refClient.ServerReflectionInfo(r.ctx)
+	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.refClient, req)
 	if err != nil {
-		return err
+		return errors.WithMessagef(err, "failed to fetch file descriptors for file %s", name)
 	}
 
-	if err := stream.Send(req); err != nil {
-		return err
-	}
+	return r.processFileDescriptors(fdProtos)
+}
 
-	resp, err := stream.Recv()
-	if err != nil {
-		return err
-	}
-
-	fdResponse, ok := resp.MessageResponse.(*reflection.ServerReflectionResponse_FileDescriptorResponse)
-	if !ok {
-		return fmt.Errorf("unexpected response: %v", resp)
-	}
-
-	// Build and register the new descriptors
-	for _, fdBytes := range fdResponse.FileDescriptorResponse.FileDescriptorProto {
-		fdProto := &descriptorpb.FileDescriptorProto{}
-		if err := proto.Unmarshal(fdBytes, fdProto); err != nil {
-			return err
-		}
-
+// processFileDescriptors processes the fetched file descriptors and recursively fetches their dependencies.
+func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDescriptorProto) error {
+	for _, fdProto := range fdProtos {
 		name := fdProto.GetName()
 		if _, err := r.files.FindFileByPath(name); err == nil {
 			// Already registered
@@ -197,20 +138,19 @@ func (r *CustomResolver) fetchDescriptorByName(name string) error {
 		for _, dep := range fdProto.Dependency {
 			if _, err := r.files.FindFileByPath(dep); err != nil {
 				if err := r.fetchDescriptorByName(dep); err != nil {
-					return err
+					return errors.WithMessagef(err, "failed to fetch dependency %s", dep)
 				}
 			}
 		}
 
 		fd, err := protodesc.NewFile(fdProto, r.files)
 		if err != nil {
-			return err
+			return errors.WithMessagef(err, "failed to create file descriptor for %s", name)
 		}
 
 		if err := r.files.RegisterFile(fd); err != nil {
-			return err
+			return errors.WithMessagef(err, "failed to register file %s", name)
 		}
 	}
-
 	return nil
 }

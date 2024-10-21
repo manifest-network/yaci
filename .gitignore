@@ -1,4 +1,4 @@
 .idea
 bin/
-*.sql
 out/
+tsv/

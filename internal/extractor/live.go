@@ -8,15 +8,15 @@ import (
 
 	"github.com/liftedinit/cosmos-dump/internal/output"
 	"github.com/liftedinit/cosmos-dump/internal/reflection"
+	"github.com/pkg/errors"
 
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
 // ExtractLiveBlocksAndTransactions monitors the chain and processes new blocks as they are produced.
-func ExtractLiveBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start uint64, outputHandler output.OutputHandler) error {
+func ExtractLiveBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start uint64, outputHandler output.OutputHandler, blockTime uint64) error {
 	// Prepare the Status method descriptors
 	statusMethodFullName := "cosmos.base.node.v1beta1.Service.Status"
 	statusServiceName, statusMethodNameOnly, err := parseMethodFullName(statusMethodFullName)
@@ -32,11 +32,6 @@ func ExtractLiveBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn
 	}
 
 	statusFullMethodName := buildFullMethodName(statusMethodDescriptor)
-
-	uo := protojson.UnmarshalOptions{
-		Resolver: resolver,
-	}
-
 	currentHeight := start
 
 	for {
@@ -45,28 +40,26 @@ func ExtractLiveBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn
 			return nil
 		default:
 			// Get the latest block height
-			latestHeight, err := getLatestBlockHeight(ctx, conn, statusFullMethodName, statusMethodDescriptor, uo)
+			latestHeight, err := getLatestBlockHeight(ctx, conn, statusFullMethodName, statusMethodDescriptor)
 			if err != nil {
-				return fmt.Errorf("failed to get latest block height: %v", err)
+				return errors.WithMessage(err, "Failed to get latest block height")
 			}
 
 			if latestHeight > currentHeight {
-				fmt.Printf("New block detected: %d\n", latestHeight)
-				// Process new blocks
 				err = ExtractBlocksAndTransactions(ctx, conn, resolver, currentHeight+1, latestHeight, outputHandler)
 				if err != nil {
-					return fmt.Errorf("failed to process blocks and transactions: %v", err)
+					return errors.WithMessage(err, "Failed to process blocks and transactions")
 				}
 				currentHeight = latestHeight
 			}
 
 			// Sleep before checking again
-			time.Sleep(5 * time.Second)
+			time.Sleep(time.Duration(blockTime) * time.Second)
 		}
 	}
 }
 
-func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor, uo protojson.UnmarshalOptions) (uint64, error) {
+func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) (uint64, error) {
 	// Create the request message (empty)
 	inputMsg := dynamicpb.NewMessage(methodDescriptor.Input())
 
@@ -75,18 +68,18 @@ func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethod
 
 	err := conn.Invoke(ctx, fullMethodName, inputMsg, outputMsg)
 	if err != nil {
-		return 0, fmt.Errorf("error invoking status method: %v", err)
+		return 0, errors.WithMessage(err, "error invoking status method")
 	}
 
 	// Extract the latest block height from the response
 	latestHeightStr := outputMsg.ProtoReflect().Get(outputMsg.Descriptor().Fields().ByName("height"))
 	if !latestHeightStr.IsValid() {
-		return 0, fmt.Errorf("height field not found in status response")
+		return 0, errors.WithMessage(err, "height field not found in status response")
 	}
 
 	latestHeight, err := strconv.ParseUint(latestHeightStr.String(), 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse latest block height: %v", err)
+		return 0, errors.WithMessage(err, "failed to parse latest block height")
 	}
 
 	return latestHeight, nil

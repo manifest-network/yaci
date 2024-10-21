@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/liftedinit/cosmos-dump/internal/models"
+	"github.com/pkg/errors"
 )
 
 type JSONOutputHandler struct {
@@ -20,12 +21,12 @@ func NewJSONOutputHandler(outDir string) (*JSONOutputHandler, error) {
 
 	err := os.MkdirAll(blockDir, 0755)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create blocks directory: %v", err)
+		return nil, errors.WithMessage(err, "failed to create blocks directory")
 	}
 
 	err = os.MkdirAll(txDir, 0755)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create transactions directory: %v", err)
+		return nil, errors.WithMessage(err, "failed to create transactions directory")
 	}
 
 	return &JSONOutputHandler{
@@ -47,6 +48,5 @@ func (h *JSONOutputHandler) WriteTransaction(ctx context.Context, tx *models.Tra
 }
 
 func (h *JSONOutputHandler) Close() error {
-	// No resources to close for file output
 	return nil
 }
