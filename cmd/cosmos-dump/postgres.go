@@ -8,15 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	connString string // PostgreSQL connection string
-)
-
 var postgresCmd = &cobra.Command{
-	Use:   "postgres",
+	Use:   "postgres [address] [psql-connection-string]",
 	Short: "Extract chain data to a PostgreSQL database",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		connString := args[1]
 		if connString == "" {
 			return fmt.Errorf("connection string is required for PostgreSQL output")
 		}
@@ -29,9 +26,4 @@ var postgresCmd = &cobra.Command{
 
 		return extract(args[0], outputHandler)
 	},
-}
-
-func init() {
-	postgresCmd.Flags().StringVar(&connString, "conn", "", "Connection string for PostgreSQL (required)")
-	postgresCmd.MarkFlagRequired("conn")
 }
