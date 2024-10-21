@@ -3,9 +3,10 @@ package cosmos_dump
 import (
 	"os"
 
-	"github.com/liftedinit/cosmos-dump/internal/output"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/liftedinit/cosmos-dump/internal/output"
 )
 
 var tsvOut string

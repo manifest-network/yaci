@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/liftedinit/cosmos-dump/internal/models"
 	"github.com/pkg/errors"
+
+	"github.com/liftedinit/cosmos-dump/internal/models"
 )
 
 type JSONOutputHandler struct {

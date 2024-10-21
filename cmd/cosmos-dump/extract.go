@@ -7,12 +7,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/liftedinit/cosmos-dump/internal/client"
 	"github.com/liftedinit/cosmos-dump/internal/extractor"
 	"github.com/liftedinit/cosmos-dump/internal/output"
 	"github.com/liftedinit/cosmos-dump/internal/reflection"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 var (
