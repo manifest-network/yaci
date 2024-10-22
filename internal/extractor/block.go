@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/liftedinit/cosmos-dump/internal/models"
 	"github.com/liftedinit/cosmos-dump/internal/output"
@@ -78,6 +79,7 @@ func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn,
 			return nil
 		}
 		slog.Warn("Retrying processing block", "height", blockHeight, "attempt", attempt, "error", err)
+		time.Sleep(time.Duration(2*attempt) * time.Second)
 	}
 	return errors.WithMessagef(err, "failed to process block %d after %d attempts", blockHeight, maxRetries)
 }
