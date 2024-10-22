@@ -8,11 +8,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/liftedinit/cosmos-dump/internal/client"
 	"github.com/liftedinit/cosmos-dump/internal/models"
 	"github.com/liftedinit/cosmos-dump/internal/output"
 	"github.com/liftedinit/cosmos-dump/internal/reflection"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
@@ -23,7 +23,7 @@ const (
 	txMethodFullName    = "cosmos.tx.v1beta1.Service.GetTx"
 )
 
-func ExtractBlocksAndTransactions(ctx context.Context, grpcPool *client.GRPCClientPool, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency uint64) error {
+func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency uint64) error {
 	if start == stop {
 		slog.Info("Extracting blocks and transactions", "height", start)
 
@@ -51,9 +51,10 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcPool *client.GRPCClie
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				err := processSingleBlock(ctx, grpcPool, resolver, blockHeight, outputHandler)
+				err := processSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, 3)
 				if err != nil {
-					errCh <- fmt.Errorf("failed to process block %d: %v", blockHeight, err)
+					slog.Error("Failed to process block after 3 retries", "height", blockHeight, "error", err)
+					errCh <- errors.WithMessagef(err, "Failed to process block %d", blockHeight)
 				}
 			}()
 		}
@@ -69,7 +70,19 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcPool *client.GRPCClie
 	return nil
 }
 
-func processSingleBlock(ctx context.Context, grpcPool *client.GRPCClientPool, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler) error {
+func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler, maxRetries int) error {
+	var err error
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		err = processSingleBlock(ctx, grpcConn, resolver, blockHeight, outputHandler)
+		if err == nil {
+			return nil
+		}
+		slog.Warn("Retrying processing block", "height", blockHeight, "attempt", attempt, "error", err)
+	}
+	return errors.WithMessagef(err, "failed to process block %d after %d attempts", blockHeight, maxRetries)
+}
+
+func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler) error {
 	files := resolver.Files()
 
 	blockServiceName, blockMethodNameOnly, err := parseMethodFullName(blockMethodFullName)
@@ -116,7 +129,6 @@ func processSingleBlock(ctx context.Context, grpcPool *client.GRPCClientPool, re
 	// Create the response message
 	blockOutputMsg := dynamicpb.NewMessage(blockMethodDescriptor.Output())
 
-	grpcConn, _ := grpcPool.GetConn()
 	err = grpcConn.Invoke(ctx, blockFullMethodName, blockInputMsg, blockOutputMsg)
 	if err != nil {
 		return errors.WithMessage(err, "error invoking block method")
