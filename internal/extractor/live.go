@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/liftedinit/cosmos-dump/internal/client"
 	"github.com/pkg/errors"
 
 	"github.com/liftedinit/cosmos-dump/internal/output"
@@ -17,7 +18,7 @@ import (
 )
 
 // ExtractLiveBlocksAndTransactions monitors the chain and processes new blocks as they are produced.
-func ExtractLiveBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, start uint64, outputHandler output.OutputHandler, blockTime uint64) error {
+func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcPool *client.GRPCClientPool, resolver *reflection.CustomResolver, start uint64, outputHandler output.OutputHandler, blockTime uint64, maxConcurrency uint64) error {
 	// Prepare the Status method descriptors
 	statusMethodFullName := "cosmos.base.node.v1beta1.Service.Status"
 	statusServiceName, statusMethodNameOnly, err := parseMethodFullName(statusMethodFullName)
@@ -40,14 +41,16 @@ func ExtractLiveBlocksAndTransactions(ctx context.Context, conn *grpc.ClientConn
 		case <-ctx.Done():
 			return nil
 		default:
+			grpcConn, _ := grpcPool.GetConn()
+
 			// Get the latest block height
-			latestHeight, err := getLatestBlockHeight(ctx, conn, statusFullMethodName, statusMethodDescriptor)
+			latestHeight, err := getLatestBlockHeight(ctx, grpcConn, statusFullMethodName, statusMethodDescriptor)
 			if err != nil {
 				return errors.WithMessage(err, "Failed to get latest block height")
 			}
 
 			if latestHeight > currentHeight {
-				err = ExtractBlocksAndTransactions(ctx, conn, resolver, currentHeight+1, latestHeight, outputHandler)
+				err = ExtractBlocksAndTransactions(ctx, grpcPool, resolver, currentHeight+1, latestHeight, outputHandler, maxConcurrency)
 				if err != nil {
 					return errors.WithMessage(err, "Failed to process blocks and transactions")
 				}

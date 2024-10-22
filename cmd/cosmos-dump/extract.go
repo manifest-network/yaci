@@ -2,6 +2,7 @@ package cosmos_dump
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -17,11 +18,13 @@ import (
 )
 
 var (
-	start     uint64
-	stop      uint64
-	insecure  bool
-	live      bool
-	blockTime uint64
+	start          uint64
+	stop           uint64
+	insecure       bool
+	live           bool
+	blockTime      uint64
+	maxConcurrency uint64
+	grpcPoolSize   uint64
 )
 
 var ExtractCmd = &cobra.Command{
@@ -36,6 +39,8 @@ func init() {
 	ExtractCmd.PersistentFlags().Uint64VarP(&start, "start", "s", 1, "Start block height")
 	ExtractCmd.PersistentFlags().Uint64VarP(&stop, "stop", "e", 1, "Stop block height")
 	ExtractCmd.PersistentFlags().Uint64VarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
+	ExtractCmd.PersistentFlags().Uint64VarP(&maxConcurrency, "max-concurrency", "c", 10, "Maximum block retrieval concurrency (advanced)")
+	ExtractCmd.PersistentFlags().Uint64VarP(&grpcPoolSize, "grpc-pool-size", "p", 100, "gRPC client pool size (advanced)")
 
 	ExtractCmd.AddCommand(jsonCmd)
 	ExtractCmd.AddCommand(tsvCmd)
@@ -55,32 +60,36 @@ func extract(address string, outputHandler output.OutputHandler) error {
 		cancel()
 	}()
 
-	// Initialize gRPC client and reflection client
-	grpcConn, refClient := client.NewGRPCClients(ctx, address, insecure)
-	defer grpcConn.Close()
+	slog.Info("Initializing gRPC client pool", "address", address, "insecure", insecure, "grpc-pool-size", grpcPoolSize, "max-concurrency", maxConcurrency)
+	grpcPool, err := client.NewGRPCClientPool(ctx, address, insecure, int(grpcPoolSize))
+	if err != nil {
+		return fmt.Errorf("failed to initialize gRPC client pool: %v", err)
+	}
+	defer grpcPool.Close()
 
-	// Fetch descriptors and build resolver
-	descriptors, err := reflection.FetchAllDescriptors(ctx, refClient)
+	slog.Info("Fetching protocol buffer descriptors from gRPC server...")
+	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcPool, maxConcurrency)
 	if err != nil {
 		return errors.WithMessage(err, "failed to fetch descriptors")
 	}
 
+	slog.Info("Building protocol buffer descriptor set...")
 	files, err := reflection.BuildFileDescriptorSet(descriptors)
 	if err != nil {
 		return errors.WithMessage(err, "failed to build descriptor set")
 	}
 
-	resolver := reflection.NewCustomResolver(files, refClient, ctx)
+	resolver := reflection.NewCustomResolver(files, grpcPool, ctx)
 
 	if live {
-		// Live mode
-		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcConn, resolver, start, outputHandler, blockTime)
+		slog.Info("Starting live extraction", "block_time", blockTime)
+		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcPool, resolver, start, outputHandler, blockTime, maxConcurrency)
 		if err != nil {
 			return errors.WithMessage(err, "failed to process live blocks and transactions")
 		}
 	} else {
-		// Batch mode
-		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, outputHandler)
+		slog.Info("Starting extraction", "start", start, "stop", stop)
+		err = extractor.ExtractBlocksAndTransactions(ctx, grpcPool, resolver, start, stop, outputHandler, maxConcurrency)
 		if err != nil {
 			return errors.WithMessage(err, "failed to process blocks and transactions")
 		}

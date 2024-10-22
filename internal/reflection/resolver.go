@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/liftedinit/cosmos-dump/internal/client"
 	"github.com/pkg/errors"
 	reflection "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -16,16 +17,16 @@ import (
 // CustomResolver implements the Resolver interface required by protojson.
 type CustomResolver struct {
 	files       *protoregistry.Files
-	refClient   reflection.ServerReflectionClient
+	grpcPool    *client.GRPCClientPool
 	ctx         context.Context
 	seenSymbols map[string]bool
 }
 
 // NewCustomResolver creates a new instance of CustomResolver.
-func NewCustomResolver(files *protoregistry.Files, refClient reflection.ServerReflectionClient, ctx context.Context) *CustomResolver {
+func NewCustomResolver(files *protoregistry.Files, grpcPool *client.GRPCClientPool, ctx context.Context) *CustomResolver {
 	return &CustomResolver{
 		files:       files,
-		refClient:   refClient,
+		grpcPool:    grpcPool,
 		ctx:         ctx,
 		seenSymbols: make(map[string]bool),
 	}
@@ -101,7 +102,7 @@ func (r *CustomResolver) fetchDescriptorBySymbol(symbol string) error {
 		},
 	}
 
-	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.refClient, req)
+	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcPool, req)
 	if err != nil {
 		return errors.WithMessagef(err, "failed to fetch file descriptors containing symbol %s", symbol)
 	}
@@ -117,7 +118,7 @@ func (r *CustomResolver) fetchDescriptorByName(name string) error {
 		},
 	}
 
-	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.refClient, req)
+	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcPool, req)
 	if err != nil {
 		return errors.WithMessagef(err, "failed to fetch file descriptors for file %s", name)
 	}

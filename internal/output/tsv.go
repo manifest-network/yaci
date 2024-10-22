@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/pkg/errors"
 
@@ -18,6 +19,7 @@ type TSVOutputHandler struct {
 	txFile      *os.File
 	blockWriter *bufio.Writer
 	txWriter    *bufio.Writer
+	mu          sync.Mutex
 }
 
 const (
@@ -53,12 +55,16 @@ func NewTSVOutputHandler(outDir string) (*TSVOutputHandler, error) {
 }
 
 func (h *TSVOutputHandler) WriteBlock(ctx context.Context, block *models.Block) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	line := fmt.Sprintf("%d\t%s\n", block.ID, string(block.Data))
 	_, err := h.blockWriter.WriteString(line)
 	return err
 }
 
 func (h *TSVOutputHandler) WriteTransaction(ctx context.Context, tx *models.Transaction) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	line := fmt.Sprintf("%s\t%s\n", tx.Hash, string(tx.Data))
 	_, err := h.txWriter.WriteString(line)
 	return err
