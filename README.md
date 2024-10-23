@@ -6,7 +6,7 @@ Tested with Cosmos SDK v0.50.x.
 
 ## Use-case
 
-Off-chain indexing of block & transaction data in order to store the extracted data to a (PostgreSQL) database.
+Off-chain indexing of block & transaction data.
 
 ## Features
 
@@ -15,7 +15,7 @@ Off-chain indexing of block & transaction data in order to store the extracted d
   - TSV
   - PostgreSQL
 - Supports server reflection; no need to specify the proto file.
-- `Any` type are properly decoded.
+- (Nested) `Any` type are properly decoded.
 - Live monitoring of the blockchain.
 - Batch extraction of data.
 
@@ -55,6 +55,8 @@ The following flags are available for all `extract` subcommand:
 - `-e`, `--stop` - The stopping block height to extract data from (default: 1)
 - `-k`, `--insecure` - Skip TLS certificate verification (default: false)'
 - `--live` - Continuously extract data from the blockchain (default: false)
+- `-r`, `--max-retries` - The maximum number of retries to connect to the gRPC server (default: 3)
+- `-c`, `--max-concurrency` - The maximum number of concurrent requests to the gRPC server (default: 100)
 
 ### Subcommands
 
