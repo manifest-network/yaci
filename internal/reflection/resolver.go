@@ -20,15 +20,17 @@ type CustomResolver struct {
 	grpcConn    *grpc.ClientConn
 	ctx         context.Context
 	seenSymbols map[string]bool
+	maxRetries  uint
 }
 
 // NewCustomResolver creates a new instance of CustomResolver.
-func NewCustomResolver(files *protoregistry.Files, grpcConn *grpc.ClientConn, ctx context.Context) *CustomResolver {
+func NewCustomResolver(files *protoregistry.Files, grpcConn *grpc.ClientConn, ctx context.Context, maxRetries uint) *CustomResolver {
 	return &CustomResolver{
 		files:       files,
 		grpcConn:    grpcConn,
 		ctx:         ctx,
 		seenSymbols: make(map[string]bool),
+		maxRetries:  maxRetries,
 	}
 }
 
@@ -102,15 +104,15 @@ func (r *CustomResolver) fetchDescriptorBySymbol(symbol string) error {
 		},
 	}
 
-	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcConn, req)
+	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcConn, req, r.maxRetries)
 	if err != nil {
 		return errors.WithMessagef(err, "failed to fetch file descriptors containing symbol %s", symbol)
 	}
 
-	return r.processFileDescriptors(fdProtos)
+	return r.processFileDescriptors(fdProtos, r.maxRetries)
 }
 
-func (r *CustomResolver) fetchDescriptorByName(name string) error {
+func (r *CustomResolver) fetchDescriptorByName(name string, maxRetries uint) error {
 	// Create the request to fetch file descriptors by filename
 	req := &reflection.ServerReflectionRequest{
 		MessageRequest: &reflection.ServerReflectionRequest_FileByFilename{
@@ -118,16 +120,16 @@ func (r *CustomResolver) fetchDescriptorByName(name string) error {
 		},
 	}
 
-	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcConn, req)
+	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcConn, req, maxRetries)
 	if err != nil {
 		return errors.WithMessagef(err, "failed to fetch file descriptors for file %s", name)
 	}
 
-	return r.processFileDescriptors(fdProtos)
+	return r.processFileDescriptors(fdProtos, maxRetries)
 }
 
 // processFileDescriptors processes the fetched file descriptors and recursively fetches their dependencies.
-func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDescriptorProto) error {
+func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDescriptorProto, maxRetries uint) error {
 	for _, fdProto := range fdProtos {
 		name := fdProto.GetName()
 		if _, err := r.files.FindFileByPath(name); err == nil {
@@ -138,7 +140,7 @@ func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDes
 		// Recursively fetch dependencies
 		for _, dep := range fdProto.Dependency {
 			if _, err := r.files.FindFileByPath(dep); err != nil {
-				if err := r.fetchDescriptorByName(dep); err != nil {
+				if err := r.fetchDescriptorByName(dep, maxRetries); err != nil {
 					return errors.WithMessagef(err, "failed to fetch dependency %s", dep)
 				}
 			}

@@ -61,12 +61,12 @@ func extract(address string, outputHandler output.OutputHandler) error {
 		cancel()
 	}()
 
-	slog.Info("Initializing gRPC client pool", "address", address, "insecure", insecure, "max-concurrency", maxConcurrency)
+	slog.Info("Initializing gRPC client pool", "address", address, "insecure", insecure, "max-concurrency", maxConcurrency, "max-retries", maxRetries)
 	grpcConn := client.NewGRPCClients(ctx, address, insecure)
 	defer grpcConn.Close()
 
-	slog.Info("Fetching protocol buffer descriptors from gRPC server...")
-	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcConn)
+	slog.Info("Fetching protocol buffer descriptors from gRPC server... This may take a while.")
+	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcConn, maxRetries)
 	if err != nil {
 		return errors.WithMessage(err, "failed to fetch descriptors")
 	}
@@ -77,7 +77,7 @@ func extract(address string, outputHandler output.OutputHandler) error {
 		return errors.WithMessage(err, "failed to build descriptor set")
 	}
 
-	resolver := reflection.NewCustomResolver(files, grpcConn, ctx)
+	resolver := reflection.NewCustomResolver(files, grpcConn, ctx, maxRetries)
 
 	if live {
 		slog.Info("Starting live extraction", "block_time", blockTime)

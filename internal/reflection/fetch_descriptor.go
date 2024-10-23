@@ -3,6 +3,7 @@ package reflection
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/golang/protobuf/proto"
 	"github.com/pkg/errors"
@@ -12,19 +13,19 @@ import (
 )
 
 // FetchAllDescriptors retrieves all file descriptors supported by the server.
-func FetchAllDescriptors(ctx context.Context, grpcClient *grpc.ClientConn) ([]*descriptorpb.FileDescriptorProto, error) {
+func FetchAllDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, maxRetries uint) ([]*descriptorpb.FileDescriptorProto, error) {
 	seenFiles := make(map[string]*descriptorpb.FileDescriptorProto)
 	var result []*descriptorpb.FileDescriptorProto
 
 	// List all services
-	services, err := listServices(ctx, grpcClient)
+	services, err := listServices(ctx, grpcClient, maxRetries)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to list services")
 	}
 
 	// For each service, fetch its file descriptors
 	for _, service := range services {
-		err := fetchFileDescriptors(ctx, grpcClient, service, seenFiles)
+		err := fetchFileDescriptors(ctx, grpcClient, service, seenFiles, maxRetries)
 		if err != nil {
 			return nil, errors.WithMessagef(err, "failed to fetch file descriptors for service %s", service)
 		}
@@ -39,14 +40,14 @@ func FetchAllDescriptors(ctx context.Context, grpcClient *grpc.ClientConn) ([]*d
 }
 
 // listServices lists all services provided by the server via reflection.
-func listServices(ctx context.Context, grpcClient *grpc.ClientConn) ([]string, error) {
+func listServices(ctx context.Context, grpcClient *grpc.ClientConn, maxRetries uint) ([]string, error) {
 	req := &reflection.ServerReflectionRequest{
 		MessageRequest: &reflection.ServerReflectionRequest_ListServices{
 			ListServices: "*",
 		},
 	}
 
-	resp, err := sendReflectionRequest(ctx, grpcClient, req)
+	resp, err := sendReflectionRequestWithRetry(ctx, grpcClient, req, maxRetries)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to list services via reflection")
 	}
@@ -65,7 +66,7 @@ func listServices(ctx context.Context, grpcClient *grpc.ClientConn) ([]string, e
 }
 
 // fetchFileDescriptors fetches the file descriptors containing the given symbol and their dependencies.
-func fetchFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, symbol string, seen map[string]*descriptorpb.FileDescriptorProto) error {
+func fetchFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, symbol string, seen map[string]*descriptorpb.FileDescriptorProto, maxRetries uint) error {
 	if _, exists := seen[symbol]; exists {
 		return nil
 	}
@@ -76,16 +77,16 @@ func fetchFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, symb
 		},
 	}
 
-	fdProtos, err := fetchFileDescriptorsFromRequest(ctx, grpcClient, req)
+	fdProtos, err := fetchFileDescriptorsFromRequest(ctx, grpcClient, req, maxRetries)
 	if err != nil {
 		return errors.WithMessagef(err, "failed to fetch file descriptors containing symbol %s", symbol)
 	}
 
-	return processFileDescriptors(ctx, grpcClient, fdProtos, seen)
+	return processFileDescriptors(ctx, grpcClient, fdProtos, seen, maxRetries)
 }
 
 // fetchFileByName fetches the file descriptor by filename and its dependencies.
-func fetchFileByName(ctx context.Context, grpcClient *grpc.ClientConn, name string, seen map[string]*descriptorpb.FileDescriptorProto) error {
+func fetchFileByName(ctx context.Context, grpcClient *grpc.ClientConn, name string, seen map[string]*descriptorpb.FileDescriptorProto, maxRetries uint) error {
 	if _, exists := seen[name]; exists {
 		return nil
 	}
@@ -96,17 +97,17 @@ func fetchFileByName(ctx context.Context, grpcClient *grpc.ClientConn, name stri
 		},
 	}
 
-	fdProtos, err := fetchFileDescriptorsFromRequest(ctx, grpcClient, req)
+	fdProtos, err := fetchFileDescriptorsFromRequest(ctx, grpcClient, req, maxRetries)
 	if err != nil {
 		return errors.WithMessagef(err, "failed to fetch file descriptors for file %s", name)
 	}
 
-	return processFileDescriptors(ctx, grpcClient, fdProtos, seen)
+	return processFileDescriptors(ctx, grpcClient, fdProtos, seen, maxRetries)
 }
 
 // fetchFileDescriptorsFromRequest sends a reflection request and returns the file descriptors.
-func fetchFileDescriptorsFromRequest(ctx context.Context, grpcClient *grpc.ClientConn, req *reflection.ServerReflectionRequest) ([]*descriptorpb.FileDescriptorProto, error) {
-	resp, err := sendReflectionRequest(ctx, grpcClient, req)
+func fetchFileDescriptorsFromRequest(ctx context.Context, grpcClient *grpc.ClientConn, req *reflection.ServerReflectionRequest, maxRetries uint) ([]*descriptorpb.FileDescriptorProto, error) {
+	resp, err := sendReflectionRequestWithRetry(ctx, grpcClient, req, maxRetries)
 	if err != nil {
 		return nil, err
 	}
@@ -129,7 +130,7 @@ func fetchFileDescriptorsFromRequest(ctx context.Context, grpcClient *grpc.Clien
 }
 
 // processFileDescriptors processes the fetched file descriptors and recursively fetches their dependencies.
-func processFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, fdProtos []*descriptorpb.FileDescriptorProto, seen map[string]*descriptorpb.FileDescriptorProto) error {
+func processFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, fdProtos []*descriptorpb.FileDescriptorProto, seen map[string]*descriptorpb.FileDescriptorProto, maxRetries uint) error {
 	for _, fdProto := range fdProtos {
 		name := fdProto.GetName()
 		if _, exists := seen[name]; exists {
@@ -140,7 +141,7 @@ func processFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, fd
 		// Recursively fetch dependencies
 		for _, dep := range fdProto.Dependency {
 			if _, exists := seen[dep]; !exists {
-				err := fetchFileByName(ctx, grpcClient, dep, seen)
+				err := fetchFileByName(ctx, grpcClient, dep, seen, maxRetries)
 				if err != nil {
 					return errors.WithMessagef(err, "failed to fetch dependency %s", dep)
 				}
@@ -148,6 +149,19 @@ func processFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, fd
 		}
 	}
 	return nil
+}
+
+func sendReflectionRequestWithRetry(ctx context.Context, grpcClient *grpc.ClientConn, req *reflection.ServerReflectionRequest, maxRetries uint) (*reflection.ServerReflectionResponse, error) {
+	var resp *reflection.ServerReflectionResponse
+	var err error
+	for attempt := uint(1); attempt <= maxRetries; attempt++ {
+		resp, err = sendReflectionRequest(ctx, grpcClient, req)
+		if err == nil {
+			return resp, nil
+		}
+		time.Sleep(time.Duration(2*attempt) * time.Second)
+	}
+	return nil, errors.WithMessage(err, fmt.Sprintf("failed to send reflection request after %d attempts", maxRetries))
 }
 
 // sendReflectionRequest sends a reflection request and returns the response.
