@@ -3,6 +3,7 @@ package extractor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 )
 
 // ExtractLiveBlocksAndTransactions monitors the chain and processes new blocks as they are produced.
-func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start uint64, outputHandler output.OutputHandler, blockTime uint64, maxConcurrency uint64) error {
+func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start uint64, outputHandler output.OutputHandler, blockTime, maxConcurrency, maxRetries uint) error {
 	// Prepare the Status method descriptors
 	statusMethodFullName := "cosmos.base.node.v1beta1.Service.Status"
 	statusServiceName, statusMethodNameOnly, err := parseMethodFullName(statusMethodFullName)
@@ -41,13 +42,13 @@ func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcConn *grpc.Client
 			return nil
 		default:
 			// Get the latest block height
-			latestHeight, err := getLatestBlockHeight(ctx, grpcConn, statusFullMethodName, statusMethodDescriptor)
+			latestHeight, err := getLatestBlockHeightWithRetry(ctx, grpcConn, statusFullMethodName, statusMethodDescriptor, maxRetries)
 			if err != nil {
 				return errors.WithMessage(err, "Failed to get latest block height")
 			}
 
 			if latestHeight > currentHeight {
-				err = ExtractBlocksAndTransactions(ctx, grpcConn, resolver, currentHeight+1, latestHeight, outputHandler, maxConcurrency)
+				err = ExtractBlocksAndTransactions(ctx, grpcConn, resolver, currentHeight+1, latestHeight, outputHandler, maxConcurrency, maxRetries)
 				if err != nil {
 					return errors.WithMessage(err, "Failed to process blocks and transactions")
 				}
@@ -58,6 +59,22 @@ func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcConn *grpc.Client
 			time.Sleep(time.Duration(blockTime) * time.Second)
 		}
 	}
+}
+
+func getLatestBlockHeightWithRetry(ctx context.Context, conn *grpc.ClientConn, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor, maxRetries uint) (uint64, error) {
+	var latestHeight uint64
+	var err error
+
+	for attempt := uint(1); attempt <= maxRetries; attempt++ {
+		latestHeight, err = getLatestBlockHeight(ctx, conn, fullMethodName, methodDescriptor)
+		if err == nil {
+			return latestHeight, nil
+		}
+		slog.Warn("Retrying getting latest block height", "attempt", attempt, "error", err)
+		time.Sleep(time.Duration(2*attempt) * time.Second)
+	}
+
+	return 0, errors.WithMessage(err, fmt.Sprintf("Failed to get latest block height after %d retries", maxRetries))
 }
 
 func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) (uint64, error) {

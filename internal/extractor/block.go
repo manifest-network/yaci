@@ -24,7 +24,7 @@ const (
 	txMethodFullName    = "cosmos.tx.v1beta1.Service.GetTx"
 )
 
-func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency uint64) error {
+func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint) error {
 	if start == stop {
 		slog.Info("Extracting blocks and transactions", "height", start)
 
@@ -52,7 +52,7 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				err := processSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, 3)
+				err := processSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, maxRetries)
 				if err != nil {
 					slog.Error("Failed to process block after 3 retries", "height", blockHeight, "error", err)
 					errCh <- errors.WithMessagef(err, "Failed to process block %d", blockHeight)
@@ -71,9 +71,9 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 	return nil
 }
 
-func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler, maxRetries int) error {
+func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler, maxRetries uint) error {
 	var err error
-	for attempt := 1; attempt <= maxRetries; attempt++ {
+	for attempt := uint(1); attempt <= maxRetries; attempt++ {
 		err = processSingleBlock(ctx, grpcConn, resolver, blockHeight, outputHandler)
 		if err == nil {
 			return nil

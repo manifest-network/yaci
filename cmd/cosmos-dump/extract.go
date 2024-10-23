@@ -21,8 +21,9 @@ var (
 	stop           uint64
 	insecure       bool
 	live           bool
-	blockTime      uint64
-	maxConcurrency uint64
+	blockTime      uint
+	maxConcurrency uint
+	maxRetries     uint
 )
 
 var ExtractCmd = &cobra.Command{
@@ -36,8 +37,11 @@ func init() {
 	ExtractCmd.PersistentFlags().BoolVar(&live, "live", false, "Enable live monitoring")
 	ExtractCmd.PersistentFlags().Uint64VarP(&start, "start", "s", 1, "Start block height")
 	ExtractCmd.PersistentFlags().Uint64VarP(&stop, "stop", "e", 1, "Stop block height")
-	ExtractCmd.PersistentFlags().Uint64VarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
-	ExtractCmd.PersistentFlags().Uint64VarP(&maxConcurrency, "max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
+	ExtractCmd.PersistentFlags().UintVarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
+	ExtractCmd.PersistentFlags().UintVarP(&maxRetries, "max-retries", "r", 3, "Maximum number of retries for failed block processing")
+	ExtractCmd.PersistentFlags().UintVarP(&maxConcurrency, "max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
+
+	ExtractCmd.MarkFlagsMutuallyExclusive("live", "stop")
 
 	ExtractCmd.AddCommand(jsonCmd)
 	ExtractCmd.AddCommand(tsvCmd)
@@ -77,13 +81,13 @@ func extract(address string, outputHandler output.OutputHandler) error {
 
 	if live {
 		slog.Info("Starting live extraction", "block_time", blockTime)
-		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcConn, resolver, start, outputHandler, blockTime, maxConcurrency)
+		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcConn, resolver, start, outputHandler, blockTime, maxConcurrency, maxRetries)
 		if err != nil {
 			return errors.WithMessage(err, "failed to process live blocks and transactions")
 		}
 	} else {
 		slog.Info("Starting extraction", "start", start, "stop", stop)
-		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, outputHandler, maxConcurrency)
+		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, outputHandler, maxConcurrency, maxRetries)
 		if err != nil {
 			return errors.WithMessage(err, "failed to process blocks and transactions")
 		}
