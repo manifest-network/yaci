@@ -1,4 +1,4 @@
-module github.com/liftedinit/cosmos-dump
+module github.com/liftedinit/yaci
 
 go 1.23.1
 

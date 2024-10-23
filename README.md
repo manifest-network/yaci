@@ -1,12 +1,12 @@
-# cosmos-dump
+# yaci
 
-`cosmos-dump` is a command-line tool that connects to a gRPC server and extracts blockchain data.
+`yaci` is a command-line tool that connects to a gRPC server and extracts blockchain data.
 
 Tested with Cosmos SDK v0.50.x.
 
 ## Use-case
 
-Off-chain indexing of block & transaction data in order to store the extracted data to a (PostgreSQL) database.
+Off-chain indexing of block & transaction data.
 
 ## Features
 
@@ -15,22 +15,22 @@ Off-chain indexing of block & transaction data in order to store the extracted d
   - TSV
   - PostgreSQL
 - Supports server reflection; no need to specify the proto file.
-- `Any` type are properly decoded.
+- (Nested) `Any` type are properly decoded.
 - Live monitoring of the blockchain.
 - Batch extraction of data.
 
 ## Installation
 
-To install the `cosmos-dump` tool, you need to have Go installed on your system. Then, you can use the following command to install the tool:
+To install the `yaci` tool, you need to have Go installed on your system. Then, you can use the following command to install the tool:
 
 ```sh
-go install github.com/liftedinit/cosmos-dump/cmd/cosmos-dump@latest
+go install github.com/liftedinit/yaci/cmd/yaci@latest
 ```
 
 ## Usage
-The basic usage of the cosmos-dump tool is as follows:
+The basic usage of the yaci tool is as follows:
 ```shell
-cosmos-dump [command] [address] [flags]
+yaci [command] [address] [flags]
 ```
 
 ## Commands
@@ -55,6 +55,8 @@ The following flags are available for all `extract` subcommand:
 - `-e`, `--stop` - The stopping block height to extract data from (default: 1)
 - `-k`, `--insecure` - Skip TLS certificate verification (default: false)'
 - `--live` - Continuously extract data from the blockchain (default: false)
+- `-r`, `--max-retries` - The maximum number of retries to connect to the gRPC server (default: 3)
+- `-c`, `--max-concurrency` - The maximum number of concurrent requests to the gRPC server (default: 100)
 
 ### Subcommands
 
@@ -70,7 +72,7 @@ Extract blockchain data and output it in JSON format.
 
 ```
 Usage:
-  cosmos-dump extract json [address] [flags]
+  yaci extract json [address] [flags]
 ```
 
 #### Flags
@@ -80,7 +82,7 @@ Usage:
 #### Example
 
 ```shell
-cosmos-dump extract json localhost:9090 -k -s 1 -e 100 -o ./data
+yaci extract json localhost:9090 -k -s 1 -e 100 -o ./data
 ```
 
 This command will connect to the gRPC server running on `localhost:9090`, extract data from block height `1` to `100`, and store the extracted data in the `data` directory.
@@ -93,7 +95,7 @@ Extract blockchain data and output it in TSV format.
 
 ```
 Usage:
-  cosmos-dump extract tsv [address] [flags]
+  yaci extract tsv [address] [flags]
 ```
 
 #### Flags
@@ -103,7 +105,7 @@ Usage:
 #### Example
 
 ```shell
-cosmos-dump extract tsv localhost:9090 -k -s 1 -e 100
+yaci extract tsv localhost:9090 -k -s 1 -e 100
 ```
 
 This command will connect to the gRPC server running on `localhost:9090`, extract data from block height `1` to `100`, and store the extracted data in the `tsv` directory in the `blocks.tsv` and `transactions.tsv` files.
@@ -116,14 +118,14 @@ Extract blockchain data and output it to a PostgreSQL database.
 
 ```
 Usage:
-  cosmos-dump extract postgres [address] [psql-connection-string] [flags]
+  yaci extract postgres [address] [psql-connection-string] [flags]
 ```
 
 
 #### Example
 
 ```shell
-cosmos-dump extract postgres localhost:9090 postgres://postgres:foobar@localhost/postgres -s 106000 -k --live -t 5
+yaci extract postgres localhost:9090 postgres://postgres:foobar@localhost/postgres -s 106000 -k --live -t 5
 ```
 
 This command will connect to the gRPC server running on `localhost:9090`, continuously extract data from block height `106000` and store the extracted data in the `postgres` database. New blocks and transactions will be inserted into the database every 5 seconds.

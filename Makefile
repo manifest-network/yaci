@@ -1,9 +1,9 @@
-VERSION = v0.0.2
+VERSION = v0.0.3
 
 #### Build ####
 build: ## Build the binary
 	@echo "--> Building development binary"
-	@go build -ldflags="-X github.com/liftedinit/cosmos-dump/cmd/cosmos-dump.Version=$(VERSION)" -o bin/cosmos-dump ./main.go
+	@go build -ldflags="-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -o bin/yaci ./main.go
 
 ####  Linting  ####
 golangci_lint_cmd=golangci-lint
@@ -27,7 +27,7 @@ goimports_version=v0.26.0
 format: ## Run formatter (goimports)
 	@echo "--> Running goimports"
 	@go install golang.org/x/tools/cmd/goimports@$(goimports_version)
-	@find . -name '*.go' -exec goimports -w -local github.com/liftedinit/cosmos-dump {} \;
+	@find . -name '*.go' -exec goimports -w -local github.com/liftedinit/yaci {} \;
 
 .PHONY: format
 

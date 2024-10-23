@@ -1,4 +1,4 @@
-package cosmos_dump
+package yaci
 
 import (
 	"context"
@@ -10,18 +10,20 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/liftedinit/cosmos-dump/internal/client"
-	"github.com/liftedinit/cosmos-dump/internal/extractor"
-	"github.com/liftedinit/cosmos-dump/internal/output"
-	"github.com/liftedinit/cosmos-dump/internal/reflection"
+	"github.com/liftedinit/yaci/internal/client"
+	"github.com/liftedinit/yaci/internal/extractor"
+	"github.com/liftedinit/yaci/internal/output"
+	"github.com/liftedinit/yaci/internal/reflection"
 )
 
 var (
-	start     uint64
-	stop      uint64
-	insecure  bool
-	live      bool
-	blockTime uint64
+	start          uint64
+	stop           uint64
+	insecure       bool
+	live           bool
+	blockTime      uint
+	maxConcurrency uint
+	maxRetries     uint
 )
 
 var ExtractCmd = &cobra.Command{
@@ -35,7 +37,11 @@ func init() {
 	ExtractCmd.PersistentFlags().BoolVar(&live, "live", false, "Enable live monitoring")
 	ExtractCmd.PersistentFlags().Uint64VarP(&start, "start", "s", 1, "Start block height")
 	ExtractCmd.PersistentFlags().Uint64VarP(&stop, "stop", "e", 1, "Stop block height")
-	ExtractCmd.PersistentFlags().Uint64VarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
+	ExtractCmd.PersistentFlags().UintVarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
+	ExtractCmd.PersistentFlags().UintVarP(&maxRetries, "max-retries", "r", 3, "Maximum number of retries for failed block processing")
+	ExtractCmd.PersistentFlags().UintVarP(&maxConcurrency, "max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
+
+	ExtractCmd.MarkFlagsMutuallyExclusive("live", "stop")
 
 	ExtractCmd.AddCommand(jsonCmd)
 	ExtractCmd.AddCommand(tsvCmd)
@@ -55,32 +61,33 @@ func extract(address string, outputHandler output.OutputHandler) error {
 		cancel()
 	}()
 
-	// Initialize gRPC client and reflection client
-	grpcConn, refClient := client.NewGRPCClients(ctx, address, insecure)
+	slog.Info("Initializing gRPC client pool", "address", address, "insecure", insecure, "max-concurrency", maxConcurrency, "max-retries", maxRetries)
+	grpcConn := client.NewGRPCClients(ctx, address, insecure)
 	defer grpcConn.Close()
 
-	// Fetch descriptors and build resolver
-	descriptors, err := reflection.FetchAllDescriptors(ctx, refClient)
+	slog.Info("Fetching protocol buffer descriptors from gRPC server... This may take a while.")
+	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcConn, maxRetries)
 	if err != nil {
 		return errors.WithMessage(err, "failed to fetch descriptors")
 	}
 
+	slog.Info("Building protocol buffer descriptor set...")
 	files, err := reflection.BuildFileDescriptorSet(descriptors)
 	if err != nil {
 		return errors.WithMessage(err, "failed to build descriptor set")
 	}
 
-	resolver := reflection.NewCustomResolver(files, refClient, ctx)
+	resolver := reflection.NewCustomResolver(files, grpcConn, ctx, maxRetries)
 
 	if live {
-		// Live mode
-		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcConn, resolver, start, outputHandler, blockTime)
+		slog.Info("Starting live extraction", "block_time", blockTime)
+		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcConn, resolver, start, outputHandler, blockTime, maxConcurrency, maxRetries)
 		if err != nil {
 			return errors.WithMessage(err, "failed to process live blocks and transactions")
 		}
 	} else {
-		// Batch mode
-		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, outputHandler)
+		slog.Info("Starting extraction", "start", start, "stop", stop)
+		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, outputHandler, maxConcurrency, maxRetries)
 		if err != nil {
 			return errors.WithMessage(err, "failed to process blocks and transactions")
 		}

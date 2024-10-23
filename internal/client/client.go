@@ -4,15 +4,22 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	reflection "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
+	"google.golang.org/grpc/keepalive"
 )
 
-// NewGRPCClients initializes the gRPC connection and reflection client.
-func NewGRPCClients(ctx context.Context, address string, insecure bool) (*grpc.ClientConn, reflection.ServerReflectionClient) {
+var keepaliveParams = keepalive.ClientParameters{
+	Time:                60 * time.Second,
+	Timeout:             30 * time.Second,
+	PermitWithoutStream: true,
+}
+
+func NewGRPCClients(ctx context.Context, address string, insecure bool) *grpc.ClientConn {
 	var opts []grpc.DialOption
+	opts = append(opts, grpc.WithKeepaliveParams(keepaliveParams))
 	if insecure {
 		opts = append(opts, grpc.WithInsecure())
 	} else {
@@ -26,6 +33,5 @@ func NewGRPCClients(ctx context.Context, address string, insecure bool) (*grpc.C
 		os.Exit(1)
 	}
 
-	refClient := reflection.NewServerReflectionClient(conn)
-	return conn, refClient
+	return conn
 }

@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/pkg/errors"
 
-	"github.com/liftedinit/cosmos-dump/internal/models"
+	"github.com/liftedinit/yaci/internal/models"
 )
 
 //go:embed sql/init.sql

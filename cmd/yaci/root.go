@@ -1,4 +1,4 @@
-package cosmos_dump
+package yaci
 
 import (
 	"fmt"
@@ -23,9 +23,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "cosmos-dump",
+	Use:   "yaci",
 	Short: "Extract chain data",
-	Long:  `cosmos-dump connects to a gRPC server and extracts blockchain data.`,
+	Long:  `yaci connects to a gRPC server and extracts blockchain data.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 
 		if err := setLogLevel(logLevel); err != nil {
