@@ -3,7 +3,7 @@ package output
 import (
 	"context"
 
-	"github.com/liftedinit/cosmos-dump/internal/models"
+	"github.com/liftedinit/yaci/internal/models"
 )
 
 type OutputHandler interface {

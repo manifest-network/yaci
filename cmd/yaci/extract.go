@@ -1,4 +1,4 @@
-package cosmos_dump
+package yaci
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/liftedinit/cosmos-dump/internal/client"
-	"github.com/liftedinit/cosmos-dump/internal/extractor"
-	"github.com/liftedinit/cosmos-dump/internal/output"
-	"github.com/liftedinit/cosmos-dump/internal/reflection"
+	"github.com/liftedinit/yaci/internal/client"
+	"github.com/liftedinit/yaci/internal/extractor"
+	"github.com/liftedinit/yaci/internal/output"
+	"github.com/liftedinit/yaci/internal/reflection"
 )
 
 var (

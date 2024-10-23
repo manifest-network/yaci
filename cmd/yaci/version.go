@@ -1,4 +1,4 @@
-package cosmos_dump
+package yaci
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ var Version = "dev"
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version number of cosmos-dump",
+	Short: "Print the version number of yaci",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("cosmos-dump", Version)
+		fmt.Println("yaci", Version)
 	},
 }

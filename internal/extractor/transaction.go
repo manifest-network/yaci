@@ -13,8 +13,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
-	"github.com/liftedinit/cosmos-dump/internal/models"
-	"github.com/liftedinit/cosmos-dump/internal/output"
+	"github.com/liftedinit/yaci/internal/models"
+	"github.com/liftedinit/yaci/internal/output"
 )
 
 func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[string]interface{}, txMethodDescriptor protoreflect.MethodDescriptor, txFullMethodName string, blockHeight uint64, outputHandler output.OutputHandler, uo protojson.UnmarshalOptions, mo protojson.MarshalOptions) error {

@@ -1,6 +1,6 @@
 package main
 
-import cosmos_dump "github.com/liftedinit/cosmos-dump/cmd/cosmos-dump"
+import cosmos_dump "github.com/liftedinit/yaci/cmd/yaci"
 
 func main() {
 	cosmos_dump.Execute()

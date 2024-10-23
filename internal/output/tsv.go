@@ -11,7 +11,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/liftedinit/cosmos-dump/internal/models"
+	"github.com/liftedinit/yaci/internal/models"
 )
 
 type TSVOutputHandler struct {

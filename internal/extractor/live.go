@@ -9,8 +9,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/liftedinit/cosmos-dump/internal/output"
-	"github.com/liftedinit/cosmos-dump/internal/reflection"
+	"github.com/liftedinit/yaci/internal/output"
+	"github.com/liftedinit/yaci/internal/reflection"
 
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"

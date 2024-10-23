@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liftedinit/cosmos-dump/internal/models"
-	"github.com/liftedinit/cosmos-dump/internal/output"
-	"github.com/liftedinit/cosmos-dump/internal/reflection"
+	"github.com/liftedinit/yaci/internal/models"
+	"github.com/liftedinit/yaci/internal/output"
+	"github.com/liftedinit/yaci/internal/reflection"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"

@@ -1,4 +1,4 @@
-package cosmos_dump
+package yaci
 
 import (
 	"os"
@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/liftedinit/cosmos-dump/internal/output"
+	"github.com/liftedinit/yaci/internal/output"
 )
 
 var tsvOut string
