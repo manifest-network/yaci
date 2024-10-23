@@ -9,14 +9,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liftedinit/yaci/internal/models"
-	"github.com/liftedinit/yaci/internal/output"
-	"github.com/liftedinit/yaci/internal/reflection"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/liftedinit/yaci/internal/models"
+	"github.com/liftedinit/yaci/internal/output"
+	"github.com/liftedinit/yaci/internal/reflection"
 )
 
 const (
