@@ -22,7 +22,7 @@ var (
 	logLevel          string
 )
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "yaci",
 	Short: "Extract chain data",
 	Long:  `yaci connects to a gRPC server and extracts blockchain data.`,
@@ -52,18 +52,18 @@ func setLogLevel(logLevel string) error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&logLevel, "logLevel", "l", "info", fmt.Sprintf("set log level (%s)", validLogLevelsStr))
+	RootCmd.PersistentFlags().StringVarP(&logLevel, "logLevel", "l", "info", fmt.Sprintf("set log level (%s)", validLogLevelsStr))
 
-	rootCmd.SilenceUsage = true
-	rootCmd.SilenceErrors = true // Handled in Execute()
+	RootCmd.SilenceUsage = true
+	RootCmd.SilenceErrors = true // Handled in Execute()
 
-	rootCmd.AddCommand(ExtractCmd)
-	rootCmd.AddCommand(versionCmd)
+	RootCmd.AddCommand(ExtractCmd)
+	RootCmd.AddCommand(versionCmd)
 }
 
 // Execute runs the root command.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		slog.Error("An error occurred", "error", err)
 		os.Exit(1)
 	}
