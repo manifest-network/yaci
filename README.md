@@ -137,6 +137,23 @@ yaci extract postgres localhost:9090 postgres://postgres:foobar@localhost/postgr
 
 This command will connect to the gRPC server running on `localhost:9090`, continuously extract data from block height `106000` and store the extracted data in the `postgres` database. New blocks and transactions will be inserted into the database every 5 seconds.
 
+## Configuration
+
+The `yaci` tool parameters can be configured from the following sources:
+
+- Environment variables (prefixed with `YACI_`)
+- Configuration file (`config.yaml`, `config.json`, `config.toml`, `config.hcl`, `config.env`)
+- Command-line flags
+
+The command-line flags have the highest priority, followed by the environment variables, and then the configuration file.
+
+The environment variables are prefixed with `YACI_` and are in uppercase. For example, the `--logLevel` flag can be set using the `YACI_LOGLEVEL` environment variable. Dash (`-`) is replaced with underscore (`_`). For example, the `--block-time` flag can be set using the `YACI_BLOCK_TIME` environment variable.
+
+The configuration file is searched in the following order:
+- The current working directory (`./`)
+- The user's home directory (`$HOME/.yaci`)
+- The system's configuration directory (`/etc/yaci`)
+
 ## Demo
 
 To run the demo, you need to have Docker installed on your system. Then, you can run the following command:
