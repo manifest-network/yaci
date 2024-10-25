@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	reflection "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/protobuf/reflect/protodesc"
@@ -55,13 +54,13 @@ func (r *CustomResolver) FindMessageByName(name protoreflect.FullName) (protoref
 
 	// If not found, attempt to fetch the descriptor via reflection
 	if err := r.fetchDescriptorBySymbol(string(name)); err != nil {
-		return nil, errors.WithMessagef(err, "failed to fetch descriptor for symbol %s", name)
+		return nil, fmt.Errorf("failed to fetch descriptor for symbol %s: %w", name, err)
 	}
 
 	// Try to find the message again after fetching
 	desc, err := r.files.FindDescriptorByName(name)
 	if err != nil {
-		return nil, errors.WithMessagef(err, "failed to find message by name %s", name)
+		return nil, fmt.Errorf("failed to find message by name %s: %w", name, err)
 	}
 
 	if desc != nil {
@@ -106,7 +105,7 @@ func (r *CustomResolver) fetchDescriptorBySymbol(symbol string) error {
 
 	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcConn, req, r.maxRetries)
 	if err != nil {
-		return errors.WithMessagef(err, "failed to fetch file descriptors containing symbol %s", symbol)
+		return fmt.Errorf("failed to fetch file descriptors containing symbol %s: %w", symbol, err)
 	}
 
 	return r.processFileDescriptors(fdProtos, r.maxRetries)
@@ -122,7 +121,7 @@ func (r *CustomResolver) fetchDescriptorByName(name string, maxRetries uint) err
 
 	fdProtos, err := fetchFileDescriptorsFromRequest(r.ctx, r.grpcConn, req, maxRetries)
 	if err != nil {
-		return errors.WithMessagef(err, "failed to fetch file descriptors for file %s", name)
+		return fmt.Errorf("failed to fetch file descriptors for file %s: %w", name, err)
 	}
 
 	return r.processFileDescriptors(fdProtos, maxRetries)
@@ -141,18 +140,18 @@ func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDes
 		for _, dep := range fdProto.Dependency {
 			if _, err := r.files.FindFileByPath(dep); err != nil {
 				if err := r.fetchDescriptorByName(dep, maxRetries); err != nil {
-					return errors.WithMessagef(err, "failed to fetch dependency %s", dep)
+					return fmt.Errorf("failed to fetch dependency %s: %w", dep, err)
 				}
 			}
 		}
 
 		fd, err := protodesc.NewFile(fdProto, r.files)
 		if err != nil {
-			return errors.WithMessagef(err, "failed to create file descriptor for %s", name)
+			return fmt.Errorf("failed to create file descriptor for %s: %w", name, err)
 		}
 
 		if err := r.files.RegisterFile(fd); err != nil {
-			return errors.WithMessagef(err, "failed to register file %s", name)
+			return fmt.Errorf("failed to register file %s: %w", name, err)
 		}
 	}
 	return nil

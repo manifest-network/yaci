@@ -2,12 +2,12 @@ package yaci
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/liftedinit/yaci/internal/client"
@@ -68,13 +68,13 @@ func extract(address string, outputHandler output.OutputHandler) error {
 	slog.Info("Fetching protocol buffer descriptors from gRPC server... This may take a while.")
 	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcConn, maxRetries)
 	if err != nil {
-		return errors.WithMessage(err, "failed to fetch descriptors")
+		return fmt.Errorf("failed to fetch descriptors: %w", err)
 	}
 
 	slog.Info("Building protocol buffer descriptor set...")
 	files, err := reflection.BuildFileDescriptorSet(descriptors)
 	if err != nil {
-		return errors.WithMessage(err, "failed to build descriptor set")
+		return fmt.Errorf("failed to build descriptor set: %w", err)
 	}
 
 	resolver := reflection.NewCustomResolver(files, grpcConn, ctx, maxRetries)
@@ -83,13 +83,13 @@ func extract(address string, outputHandler output.OutputHandler) error {
 		slog.Info("Starting live extraction", "block_time", blockTime)
 		err = extractor.ExtractLiveBlocksAndTransactions(ctx, grpcConn, resolver, start, outputHandler, blockTime, maxConcurrency, maxRetries)
 		if err != nil {
-			return errors.WithMessage(err, "failed to process live blocks and transactions")
+			return fmt.Errorf("failed to process live blocks and transactions: %w", err)
 		}
 	} else {
 		slog.Info("Starting extraction", "start", start, "stop", stop)
 		err = extractor.ExtractBlocksAndTransactions(ctx, grpcConn, resolver, start, stop, outputHandler, maxConcurrency, maxRetries)
 		if err != nil {
-			return errors.WithMessage(err, "failed to process blocks and transactions")
+			return fmt.Errorf("failed to process blocks and transactions: %w", err)
 		}
 	}
 

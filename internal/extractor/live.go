@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/pkg/errors"
-
 	"github.com/liftedinit/yaci/internal/output"
 	"github.com/liftedinit/yaci/internal/reflection"
 
@@ -30,11 +28,11 @@ func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcConn *grpc.Client
 
 	statusMethodDescriptor, err := reflection.FindMethodDescriptor(files, statusServiceName, statusMethodNameOnly)
 	if err != nil {
-		return fmt.Errorf("failed to find status method descriptor: %v", err)
+		return fmt.Errorf("failed to find status method descriptor: %w", err)
 	}
 
 	statusFullMethodName := buildFullMethodName(statusMethodDescriptor)
-	currentHeight := start
+	currentHeight := start - 1
 
 	for {
 		select {
@@ -44,13 +42,13 @@ func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcConn *grpc.Client
 			// Get the latest block height
 			latestHeight, err := getLatestBlockHeightWithRetry(ctx, grpcConn, statusFullMethodName, statusMethodDescriptor, maxRetries)
 			if err != nil {
-				return errors.WithMessage(err, "Failed to get latest block height")
+				return fmt.Errorf("failed to get latest block height: %w", err)
 			}
 
 			if latestHeight > currentHeight {
 				err = ExtractBlocksAndTransactions(ctx, grpcConn, resolver, currentHeight+1, latestHeight, outputHandler, maxConcurrency, maxRetries)
 				if err != nil {
-					return errors.WithMessage(err, "Failed to process blocks and transactions")
+					return fmt.Errorf("failed to process blocks and transactions: %w", err)
 				}
 				currentHeight = latestHeight
 			}
@@ -74,7 +72,7 @@ func getLatestBlockHeightWithRetry(ctx context.Context, conn *grpc.ClientConn, f
 		time.Sleep(time.Duration(2*attempt) * time.Second)
 	}
 
-	return 0, errors.WithMessage(err, fmt.Sprintf("Failed to get latest block height after %d retries", maxRetries))
+	return 0, fmt.Errorf("failed to get latest block height after %d retries: %w", maxRetries, err)
 }
 
 func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) (uint64, error) {
@@ -86,18 +84,18 @@ func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethod
 
 	err := conn.Invoke(ctx, fullMethodName, inputMsg, outputMsg)
 	if err != nil {
-		return 0, errors.WithMessage(err, "error invoking status method")
+		return 0, fmt.Errorf("error invoking status method: %w", err)
 	}
 
 	// Extract the latest block height from the response
 	latestHeightStr := outputMsg.ProtoReflect().Get(outputMsg.Descriptor().Fields().ByName("height"))
 	if !latestHeightStr.IsValid() {
-		return 0, errors.WithMessage(err, "height field not found in status response")
+		return 0, fmt.Errorf("height field not found in status response: %w", err)
 	}
 
 	latestHeight, err := strconv.ParseUint(latestHeightStr.String(), 10, 64)
 	if err != nil {
-		return 0, errors.WithMessage(err, "failed to parse latest block height")
+		return 0, fmt.Errorf("failed to parse latest block height: %w", err)
 	}
 
 	return latestHeight, nil

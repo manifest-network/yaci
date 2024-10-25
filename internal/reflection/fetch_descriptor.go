@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	reflection "google.golang.org/grpc/reflection/grpc_reflection_v1alpha"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -20,14 +19,14 @@ func FetchAllDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, maxRe
 	// List all services
 	services, err := listServices(ctx, grpcClient, maxRetries)
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to list services")
+		return nil, fmt.Errorf("failed to list services: %w", err)
 	}
 
 	// For each service, fetch its file descriptors
 	for _, service := range services {
 		err := fetchFileDescriptors(ctx, grpcClient, service, seenFiles, maxRetries)
 		if err != nil {
-			return nil, errors.WithMessagef(err, "failed to fetch file descriptors for service %s", service)
+			return nil, fmt.Errorf("failed to fetch file descriptors for service %s: %w", service, err)
 		}
 	}
 
@@ -49,7 +48,7 @@ func listServices(ctx context.Context, grpcClient *grpc.ClientConn, maxRetries u
 
 	resp, err := sendReflectionRequestWithRetry(ctx, grpcClient, req, maxRetries)
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to list services via reflection")
+		return nil, fmt.Errorf("failed to list services via reflection: %w", err)
 	}
 
 	listServicesResp, ok := resp.MessageResponse.(*reflection.ServerReflectionResponse_ListServicesResponse)
@@ -79,7 +78,7 @@ func fetchFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, symb
 
 	fdProtos, err := fetchFileDescriptorsFromRequest(ctx, grpcClient, req, maxRetries)
 	if err != nil {
-		return errors.WithMessagef(err, "failed to fetch file descriptors containing symbol %s", symbol)
+		return fmt.Errorf("failed to fetch file descriptors containing symbol %s: %w", symbol, err)
 	}
 
 	return processFileDescriptors(ctx, grpcClient, fdProtos, seen, maxRetries)
@@ -99,7 +98,7 @@ func fetchFileByName(ctx context.Context, grpcClient *grpc.ClientConn, name stri
 
 	fdProtos, err := fetchFileDescriptorsFromRequest(ctx, grpcClient, req, maxRetries)
 	if err != nil {
-		return errors.WithMessagef(err, "failed to fetch file descriptors for file %s", name)
+		return fmt.Errorf("failed to fetch file descriptors for file %s: %w", name, err)
 	}
 
 	return processFileDescriptors(ctx, grpcClient, fdProtos, seen, maxRetries)
@@ -121,7 +120,7 @@ func fetchFileDescriptorsFromRequest(ctx context.Context, grpcClient *grpc.Clien
 	for _, fdBytes := range fdResponse.FileDescriptorResponse.FileDescriptorProto {
 		fdProto := &descriptorpb.FileDescriptorProto{}
 		if err := proto.Unmarshal(fdBytes, fdProto); err != nil {
-			return nil, errors.WithMessage(err, "failed to unmarshal file descriptor")
+			return nil, fmt.Errorf("failed to unmarshal file descriptor: %w", err)
 		}
 		fdProtos = append(fdProtos, fdProto)
 	}
@@ -143,7 +142,7 @@ func processFileDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, fd
 			if _, exists := seen[dep]; !exists {
 				err := fetchFileByName(ctx, grpcClient, dep, seen, maxRetries)
 				if err != nil {
-					return errors.WithMessagef(err, "failed to fetch dependency %s", dep)
+					return fmt.Errorf("failed to fetch dependency %s: %w", dep, err)
 				}
 			}
 		}
@@ -161,7 +160,7 @@ func sendReflectionRequestWithRetry(ctx context.Context, grpcClient *grpc.Client
 		}
 		time.Sleep(time.Duration(2*attempt) * time.Second)
 	}
-	return nil, errors.WithMessage(err, fmt.Sprintf("failed to send reflection request after %d attempts", maxRetries))
+	return nil, fmt.Errorf("failed to send reflection request after %d attempts: %w", maxRetries, err)
 }
 
 // sendReflectionRequest sends a reflection request and returns the response.
@@ -169,17 +168,17 @@ func sendReflectionRequest(ctx context.Context, grpcClient *grpc.ClientConn, req
 	refClient := reflection.NewServerReflectionClient(grpcClient)
 	stream, err := refClient.ServerReflectionInfo(ctx)
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to create reflection stream")
+		return nil, fmt.Errorf("failed to create reflection stream: %w", err)
 	}
 	defer stream.CloseSend()
 
 	if err := stream.Send(req); err != nil {
-		return nil, errors.WithMessage(err, "failed to send reflection request")
+		return nil, fmt.Errorf("failed to send reflection request: %w", err)
 	}
 
 	resp, err := stream.Recv()
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to receive reflection response")
+		return nil, fmt.Errorf("failed to receive reflection response: %w", err)
 	}
 
 	if err := checkErrorResponse(resp); err != nil {

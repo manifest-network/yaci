@@ -7,7 +7,6 @@ import (
 )
 
 type OutputHandler interface {
-	WriteBlock(ctx context.Context, block *models.Block) error
-	WriteTransaction(ctx context.Context, tx *models.Transaction) error
+	WriteBlockWithTransactions(ctx context.Context, block *models.Block, transactions []*models.Transaction) error
 	Close() error
 }

@@ -1,9 +1,9 @@
 package yaci
 
 import (
+	"fmt"
 	"os"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/liftedinit/yaci/internal/output"
@@ -18,12 +18,12 @@ var tsvCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		err := os.MkdirAll(tsvOut, 0755)
 		if err != nil {
-			return errors.WithMessage(err, "failed to create output directory")
+			return fmt.Errorf("failed to create output directory: %w", err)
 		}
 
 		outputHandler, err := output.NewTSVOutputHandler(tsvOut)
 		if err != nil {
-			return errors.WithMessage(err, "failed to create TSV output handler")
+			return fmt.Errorf("failed to create TSV output handler: %w", err)
 		}
 		defer outputHandler.Close()
 
