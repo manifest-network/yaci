@@ -125,14 +125,17 @@ Extract blockchain data and output it to a PostgreSQL database.
 
 ```
 Usage:
-  yaci extract postgres [address] [psql-connection-string] [flags]
+  yaci extract postgres [address] [flags]
 ```
 
+#### Flags
+
+- `-p`, `--postgres-conn` - The PostgreSQL connection string
 
 #### Example
 
 ```shell
-yaci extract postgres localhost:9090 postgres://postgres:foobar@localhost/postgres -s 106000 -k --live -t 5
+yaci extract postgres localhost:9090 -p postgres://postgres:foobar@localhost/postgres -s 106000 -k --live -t 5
 ```
 
 This command will connect to the gRPC server running on `localhost:9090`, continuously extract data from block height `106000` and store the extracted data in the `postgres` database. New blocks and transactions will be inserted into the database every 5 seconds.
