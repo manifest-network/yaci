@@ -4,10 +4,11 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/liftedinit/yaci/internal/output"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/liftedinit/yaci/internal/output"
 )
 
 var postgresCmd = &cobra.Command{
