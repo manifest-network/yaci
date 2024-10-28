@@ -1,3 +1,9 @@
+# This is a docker-compose file that will start
+#  - a postgres database,
+#  - a manifest-ledger node,
+#   -a postgrest server, and,
+#  - initialize the manifest-ledger node with some transactions.
+# This is the base infrastructure that will be used by the YACI service.
 services:
   db:
     image: postgres
@@ -21,6 +27,8 @@ services:
     volumes:
         - manifest-ledger-bin:/usr/bin
         - manifest-ledger-data:/persistent
+    ports:
+      - "9090:9090"
     entrypoint: ["/bin/bash", "-c"]
     command: ["update_test_genesis() { cat $HOME_DIR/config/genesis.json | jq $1 > $HOME_DIR/config/tmp_genesis.json && mv $HOME_DIR/config/tmp_genesis.json $HOME_DIR/config/genesis.json; };
                echo $MNEMO1 | $BINARY keys add $KEY --home=$HOME_DIR --keyring-backend $KEYRING --algo $KEYALGO --recover &&
@@ -73,6 +81,7 @@ services:
       - manifest-ledger-bin:/usr/bin
       - manifest-ledger-data:/persistent
     entrypoint: ["/bin/bash", "-c"]
+    # The last sleep is to give the transactions time to be committed. Do not remove it.
     command: ["manifestd tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} && sleep ${TIMEOUT_COMMIT} &&
                manifestd tx tokenfactory create-denom ufoobar ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
                manifestd tx tokenfactory modify-metadata factory/$ADDR1/ufoobar FOOBAR \"This is the foobar token\" 6 ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
@@ -80,22 +89,11 @@ services:
                manifestd tx group submit-proposal proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
                manifestd tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} --sign-mode amino-json && sleep ${TIMEOUT_COMMIT} &&
                cat proposal.json | jq '.title=\"Payout proposal with AMINO\"' > other_proposal.json &&
-               manifestd tx group submit-proposal other_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --sign-mode amino-json
+               manifestd tx group submit-proposal other_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --sign-mode amino-json && sleep ${TIMEOUT_COMMIT}
                "]
     depends_on:
       manifest-ledger:
         condition: service_healthy
-
-  yaci:
-    build:
-      context: ./
-      dockerfile: Dockerfile
-    command: ["extract", "postgres", "manifest-ledger:${GRPC}", "postgres://postgres:foobar@db:5432/postgres", "--live", "-k"]
-    depends_on:
-      db:
-        condition: service_healthy
-      manifest-ledger-tx:
-        condition: service_completed_successfully
 
   postgrest:
     image: postgrest/postgrest
@@ -109,6 +107,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      manifest-ledger-tx:
+        condition: service_completed_successfully # We want to wait for the transactions to be completed before starting the postgrest server
 
 volumes:
   manifest-ledger-bin:

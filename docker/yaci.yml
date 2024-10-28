@@ -1,0 +1,15 @@
+# This is a docker-compose file that will start the YACI service.
+# The base infrastructure required by the YACI service is defined in `infra.yml`.
+include:
+  - infra.yml
+services:
+  yaci:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    command: ["extract", "postgres", "manifest-ledger:${GRPC}", "postgres://postgres:foobar@db:5432/postgres", "--live", "-k"]
+    depends_on:
+      db:
+        condition: service_healthy
+      manifest-ledger-tx:
+        condition: service_completed_successfully

@@ -5,10 +5,25 @@ build: ## Build the binary
 	@echo "--> Building development binary"
 	@go build -ldflags="-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -o bin/yaci ./main.go
 
+.PHONY: build
+
 #### Test ####
 test: ## Run tests
 	@echo "--> Running tests"
 	@go test -v ./...
+
+.PHONY: test
+
+#### Docker ####
+docker-up:
+	@echo "--> Running docker compose up --build --wait -d"
+	@docker compose -f docker/yaci.yml up --build --wait -d
+
+docker-down:
+	@echo "--> Running docker compose down -v"
+	@docker compose -f docker/yaci.yml down -v
+
+.PHONY: docker-up docker-down
 
 ####  Linting  ####
 golangci_lint_cmd=golangci-lint

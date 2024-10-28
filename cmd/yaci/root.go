@@ -27,7 +27,6 @@ var RootCmd = &cobra.Command{
 	Short: "Extract chain data",
 	Long:  `yaci connects to a gRPC server and extracts blockchain data.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-
 		if err := setLogLevel(logLevel); err != nil {
 			return err
 		}

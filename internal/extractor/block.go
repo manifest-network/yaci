@@ -5,14 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/liftedinit/yaci/internal/utils"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/liftedinit/yaci/internal/models"
@@ -86,31 +85,29 @@ func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn,
 }
 
 func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler) error {
-	files := resolver.Files()
-
-	blockServiceName, blockMethodNameOnly, err := parseMethodFullName(blockMethodFullName)
+	blockServiceName, blockMethodNameOnly, err := utils.ParseMethodFullName(blockMethodFullName)
 	if err != nil {
 		return errors.WithMessage(err, "failed to parse block method full name")
 	}
 
-	blockMethodDescriptor, err := reflection.FindMethodDescriptor(files, blockServiceName, blockMethodNameOnly)
+	blockMethodDescriptor, err := resolver.FindMethodDescriptor(blockServiceName, blockMethodNameOnly)
 	if err != nil {
 		return errors.WithMessage(err, "failed to find block method descriptor")
 	}
 
-	blockFullMethodName := buildFullMethodName(blockMethodDescriptor)
+	blockFullMethodName := utils.BuildFullMethodName(blockMethodDescriptor)
 
-	txServiceName, txMethodNameOnly, err := parseMethodFullName(txMethodFullName)
+	txServiceName, txMethodNameOnly, err := utils.ParseMethodFullName(txMethodFullName)
 	if err != nil {
 		return errors.WithMessage(err, "failed to parse tx method full name")
 	}
 
-	txMethodDescriptor, err := reflection.FindMethodDescriptor(files, txServiceName, txMethodNameOnly)
+	txMethodDescriptor, err := resolver.FindMethodDescriptor(txServiceName, txMethodNameOnly)
 	if err != nil {
 		return errors.WithMessage(err, "failed to find tx method descriptor")
 	}
 
-	txFullMethodName := buildFullMethodName(txMethodDescriptor)
+	txFullMethodName := utils.BuildFullMethodName(txMethodDescriptor)
 
 	uo := protojson.UnmarshalOptions{
 		Resolver: resolver,
@@ -165,32 +162,4 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 	}
 
 	return nil
-}
-
-func parseMethodFullName(methodFullName string) (string, string, error) {
-	if methodFullName == "" {
-		return "", "", fmt.Errorf("method full name is empty")
-	}
-
-	lastDot := strings.LastIndex(methodFullName, ".")
-	if lastDot == -1 {
-		return "", "", fmt.Errorf("no dot found in method full name")
-	}
-	serviceName := methodFullName[:lastDot]
-	methodNameOnly := methodFullName[lastDot+1:]
-
-	if serviceName == "" || methodNameOnly == "" {
-		return "", "", fmt.Errorf("invalid method full name format")
-	}
-
-	return serviceName, methodNameOnly, nil
-}
-
-func buildFullMethodName(methodDescriptor protoreflect.MethodDescriptor) string {
-	fullMethodName := "/" + string(methodDescriptor.FullName())
-	lastDot := strings.LastIndex(fullMethodName, ".")
-	if lastDot != -1 {
-		fullMethodName = fullMethodName[:lastDot] + "/" + fullMethodName[lastDot+1:]
-	}
-	return fullMethodName
 }

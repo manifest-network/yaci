@@ -143,7 +143,7 @@ To run the demo, you need to have Docker installed on your system. Then, you can
 
 ```shell
 # Build and start the e2e environment
-docker compose up --wait --build
+make docker-up
 ```
 
 Wait for the e2e environment to start. Then, open a new browser tab and navigate to http://localhost:3000/blocks?order=id.desc to view the blocks and to http://localhost:3000/transactions to view the transactions.
@@ -151,7 +151,7 @@ Wait for the e2e environment to start. Then, open a new browser tab and navigate
 Run
 
 ```shell
-docker compose down -v
+make docker-down
 ```
 
 to stop the e2e environment.

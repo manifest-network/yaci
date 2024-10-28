@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/liftedinit/yaci/internal/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
@@ -36,16 +37,17 @@ func init() {
 	ExtractCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Skip TLS certificate verification (INSECURE)")
 	ExtractCmd.PersistentFlags().BoolVar(&live, "live", false, "Enable live monitoring")
 	ExtractCmd.PersistentFlags().Uint64VarP(&start, "start", "s", 1, "Start block height")
-	ExtractCmd.PersistentFlags().Uint64VarP(&stop, "stop", "e", 1, "Stop block height")
+	ExtractCmd.PersistentFlags().Uint64VarP(&stop, "stop", "e", 0, "Stop block height")
 	ExtractCmd.PersistentFlags().UintVarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
 	ExtractCmd.PersistentFlags().UintVarP(&maxRetries, "max-retries", "r", 3, "Maximum number of retries for failed block processing")
 	ExtractCmd.PersistentFlags().UintVarP(&maxConcurrency, "max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
 
+	// TODO: Clashes with the Docker test. Why?
 	ExtractCmd.MarkFlagsMutuallyExclusive("live", "stop")
 
 	ExtractCmd.AddCommand(jsonCmd)
 	ExtractCmd.AddCommand(tsvCmd)
-	ExtractCmd.AddCommand(postgresCmd)
+	ExtractCmd.AddCommand(PostgresCmd)
 }
 
 func extract(address string, outputHandler output.OutputHandler) error {
@@ -78,6 +80,13 @@ func extract(address string, outputHandler output.OutputHandler) error {
 	}
 
 	resolver := reflection.NewCustomResolver(files, grpcConn, ctx, maxRetries)
+
+	if stop == 0 {
+		stop, err = utils.GetLatestBlockHeightWithRetry(ctx, grpcConn, resolver, maxRetries)
+		if err != nil {
+			return errors.WithMessage(err, "failed to get latest block height")
+		}
+	}
 
 	if live {
 		slog.Info("Starting live extraction", "block_time", blockTime)
