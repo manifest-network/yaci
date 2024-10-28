@@ -10,9 +10,13 @@ build: ## Build the binary
 #### Test ####
 test: ## Run tests
 	@echo "--> Running tests"
-	@go test -v ./...
+	@go test -v -short -race ./...
 
-.PHONY: test
+test-e2e: ## Run end-to-end tests
+	@echo "--> Running end-to-end tests"
+	@go test -v -race ./cmd/yaci/postgres_test.go
+
+.PHONY: test test-e2e
 
 #### Docker ####
 docker-up:

@@ -156,6 +156,20 @@ make docker-down
 
 to stop the e2e environment.
 
+## Testing
+
+To run the unit tests, you can use the following command:
+
+```shell
+make test
+```
+
+To run the end-to-end tests, you can use the following command:
+
+```shell
+make test-e2e
+```
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

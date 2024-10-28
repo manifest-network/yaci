@@ -127,9 +127,6 @@ func (r *CustomResolver) fetchDescriptorBySymbol(symbol string) error {
 		r.mu.Unlock()
 		return nil
 	}
-	r.mu.Unlock()
-
-	r.mu.Lock()
 	r.seenSymbols[symbol] = true
 	r.mu.Unlock()
 
@@ -166,11 +163,12 @@ func (r *CustomResolver) fetchDescriptorByName(name string, maxRetries uint) err
 
 // processFileDescriptors processes the fetched file descriptors and recursively fetches their dependencies.
 func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDescriptorProto, maxRetries uint) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	for _, fdProto := range fdProtos {
 		name := fdProto.GetName()
-		r.mu.Lock()
 		_, err := r.files.FindFileByPath(name)
-		r.mu.Unlock()
 		if err == nil {
 			// Already registered
 			continue
@@ -178,9 +176,7 @@ func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDes
 
 		// Recursively fetch dependencies
 		for _, dep := range fdProto.Dependency {
-			r.mu.Lock()
 			_, err := r.files.FindFileByPath(dep)
-			r.mu.Unlock()
 			if err != nil {
 				if err := r.fetchDescriptorByName(dep, maxRetries); err != nil {
 					return errors.WithMessagef(err, "failed to fetch dependency %s", dep)
@@ -193,9 +189,7 @@ func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDes
 			return errors.WithMessagef(err, "failed to create file descriptor for %s", name)
 		}
 
-		r.mu.Lock()
 		err = r.files.RegisterFile(fd)
-		r.mu.Unlock()
 
 		if err != nil {
 			return errors.WithMessagef(err, "failed to register file %s", name)
