@@ -5,6 +5,11 @@ build: ## Build the binary
 	@echo "--> Building development binary"
 	@go build -ldflags="-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -o bin/yaci ./main.go
 
+#### Test ####
+test: ## Run tests
+	@echo "--> Running tests"
+	@go test -v ./...
+
 ####  Linting  ####
 golangci_lint_cmd=golangci-lint
 golangci_version=v1.61.0
