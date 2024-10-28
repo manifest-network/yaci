@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const testEndpoint = "manifest-testnet-rpc.liftedinit.tech:443"
-
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {
 	buf := new(bytes.Buffer)
 	root.SetOut(buf)

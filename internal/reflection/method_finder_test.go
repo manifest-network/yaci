@@ -3,48 +3,24 @@ package reflection_test
 import (
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/liftedinit/yaci/internal/reflection"
+	"github.com/liftedinit/yaci/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoregistry"
-	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 func TestFindMethodDescriptor(t *testing.T) {
-	// Create mock file descriptor
-	fdProto := &descriptorpb.FileDescriptorProto{
-		Name: proto.String("test.proto"),
-		Service: []*descriptorpb.ServiceDescriptorProto{
-			{
-				Name: proto.String("TestService"),
-				Method: []*descriptorpb.MethodDescriptorProto{
-					{
-						Name:       proto.String("TestMethod"),
-						InputType:  proto.String("TestInput"),
-						OutputType: proto.String("TestOutput"),
-					},
-				},
-			},
-		},
-		MessageType: []*descriptorpb.DescriptorProto{
-			{
-				Name: proto.String("TestInput"),
-			},
-			{
-				Name: proto.String("TestOutput"),
-			},
-		},
-	}
-
-	// Convert to FileDescriptor
-	fd, err := protodesc.NewFile(fdProto, nil)
-	assert.NoError(t, err)
-
-	// Create a registry and register the file descriptor
 	files := new(protoregistry.Files)
-	err = files.RegisterFile(fd)
-	assert.NoError(t, err)
+
+	// Register the sorted descriptors
+	for _, fdProto := range testutil.MockFileDescriptorSet.File {
+		fd, err := protodesc.NewFile(fdProto, files)
+		assert.NoError(t, err)
+
+		err = files.RegisterFile(fd)
+		assert.NoError(t, err)
+	}
 
 	// Test finding the method descriptor
 	methodDesc, err := reflection.FindMethodDescriptor(files, "TestService", "TestMethod")
