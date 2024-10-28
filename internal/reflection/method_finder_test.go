@@ -3,11 +3,12 @@ package reflection_test
 import (
 	"testing"
 
-	"github.com/liftedinit/yaci/internal/reflection"
-	"github.com/liftedinit/yaci/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoregistry"
+
+	"github.com/liftedinit/yaci/internal/reflection"
+	"github.com/liftedinit/yaci/internal/testutil"
 )
 
 func TestFindMethodDescriptor(t *testing.T) {

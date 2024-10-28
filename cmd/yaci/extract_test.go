@@ -3,8 +3,9 @@ package yaci_test
 import (
 	"testing"
 
-	"github.com/liftedinit/yaci/cmd/yaci"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/liftedinit/yaci/cmd/yaci"
 )
 
 func TestExtractCmd(t *testing.T) {

@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/liftedinit/yaci/internal/reflection"
-	"github.com/liftedinit/yaci/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+
+	"github.com/liftedinit/yaci/internal/reflection"
+	"github.com/liftedinit/yaci/internal/testutil"
 )
 
 func TestFetchAllDescriptors(t *testing.T) {
