@@ -77,7 +77,10 @@ services:
                manifestd tx tokenfactory create-denom ufoobar ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
                manifestd tx tokenfactory modify-metadata factory/$ADDR1/ufoobar FOOBAR \"This is the foobar token\" 6 ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
                echo '${PAYOUT_PROPOSAL}' > proposal.json && cat proposal.json &&
-               manifestd tx group submit-proposal proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT}
+               manifestd tx group submit-proposal proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
+               manifestd tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} --sign-mode amino-json && sleep ${TIMEOUT_COMMIT} &&
+               cat proposal.json | jq '.title=\"Payout proposal with AMINO\"' > other_proposal.json &&
+               manifestd tx group submit-proposal other_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --sign-mode amino-json
                "]
     depends_on:
       manifest-ledger:
