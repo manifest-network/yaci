@@ -34,11 +34,11 @@ func TestPostgres(t *testing.T) {
 	_, err := docker.RunDockerComposeE(t, opts, "-f", "infra.yml", "up", "-d", "--wait")
 	require.NoError(t, err)
 
-	// Run the YACI command to Extract the chain data to a PostgreSQL database
+	// Run the YACI command to extract the chain data to a PostgreSQL database
 	cmd := yaci.RootCmd
 	cmd.SetArgs([]string{"extract", "postgres", GRPCEndpoint, "-p", PsqlConnectionString, "-k"})
 
-	// Execute the command. This will Extract the chain data to a PostgreSQL database up to the latest block.
+	// Execute the command. This will extract the chain data to a PostgreSQL database up to the latest block.
 	err = cmd.Execute()
 	require.NoError(t, err)
 
