@@ -7,7 +7,7 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
-    command: ["extract", "postgres", "manifest-ledger:${GRPC}", "postgres://postgres:foobar@db:5432/postgres", "--live", "-k"]
+    command: ["extract", "postgres", "manifest-ledger:${GRPC}", "-p", "postgres://postgres:foobar@db:5432/postgres", "--live", "-k"]
     depends_on:
       db:
         condition: service_healthy
