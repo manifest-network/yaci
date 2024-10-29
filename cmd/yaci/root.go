@@ -60,6 +60,15 @@ func init() {
 	RootCmd.SilenceUsage = true
 	RootCmd.SilenceErrors = true
 
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("$HOME/.yaci")
+	viper.AddConfigPath("/etc/yaci")
+
+	viper.SetEnvPrefix("yaci")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
+
 	RootCmd.AddCommand(ExtractCmd)
 	RootCmd.AddCommand(versionCmd)
 }
