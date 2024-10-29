@@ -13,7 +13,7 @@ COPY go.sum ./
 RUN go mod download
 
 # Copy the source code into the container.
-COPY .. .
+COPY . .
 
 # Build the Go app as a static binary.
 # -o specifies the output file, in this case, the executable name.
