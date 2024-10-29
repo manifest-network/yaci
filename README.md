@@ -1,5 +1,9 @@
 # yaci
 
+[![build](https://img.shields.io/circleci/build/github/liftedinit/yaci/main)](https://app.circleci.com/pipelines/github/liftedinit/yaci)
+[![coverage](https://img.shields.io/codecov/c/github/liftedinit/yaci)](https://app.codecov.io/gh/liftedinit/yaci)
+[![Go Report Card](https://goreportcard.com/badge/github.com/liftedinit/yaci)](https://goreportcard.com/report/github.com/liftedinit/yaci)
+
 `yaci` is a command-line tool that connects to a gRPC server and extracts blockchain data.
 
 Tested with Cosmos SDK v0.50.x.
