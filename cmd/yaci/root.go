@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -19,7 +20,6 @@ var (
 		"error": slog.LevelError,
 	}
 	validLogLevelsStr = strings.Join(slices.Sorted(maps.Keys(validLogLevels)), "|")
-	logLevel          string
 )
 
 var rootCmd = &cobra.Command{
@@ -27,11 +27,11 @@ var rootCmd = &cobra.Command{
 	Short: "Extract chain data",
 	Long:  `yaci connects to a gRPC server and extracts blockchain data.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-
+		logLevel := viper.GetString("logLevel")
 		if err := setLogLevel(logLevel); err != nil {
 			return err
 		}
-		slog.Info("Application started", "version", Version)
+		slog.Debug("Application started", "version", Version)
 		return nil
 	},
 }
@@ -52,10 +52,22 @@ func setLogLevel(logLevel string) error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&logLevel, "logLevel", "l", "info", fmt.Sprintf("set log level (%s)", validLogLevelsStr))
+	rootCmd.PersistentFlags().StringP("logLevel", "l", "info", fmt.Sprintf("set log level (%s)", validLogLevelsStr))
+	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
+		slog.Error("Failed to bind rootCmd flags", "error", err)
+	}
 
 	rootCmd.SilenceUsage = true
-	rootCmd.SilenceErrors = true // Handled in Execute()
+	rootCmd.SilenceErrors = true
+
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".")
+	viper.AddConfigPath("$HOME/.yaci")
+	viper.AddConfigPath("/etc/yaci")
+
+	viper.SetEnvPrefix("yaci")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
 
 	rootCmd.AddCommand(ExtractCmd)
 	rootCmd.AddCommand(versionCmd)
@@ -63,6 +75,12 @@ func init() {
 
 // Execute runs the root command.
 func Execute() {
+	if err := viper.ReadInConfig(); err == nil {
+		slog.Info("Using config file", "file", viper.ConfigFileUsed())
+	} else {
+		slog.Info("No config file found")
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		slog.Error("An error occurred", "error", err)
 		os.Exit(1)

@@ -2,20 +2,23 @@ package yaci
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/liftedinit/yaci/internal/output"
 )
-
-var tsvOut string
 
 var tsvCmd = &cobra.Command{
 	Use:   "tsv [address] [flags]",
 	Short: "Extract chain data to TSV files",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		tsvOut := viper.GetString("tsv-out")
+		slog.Debug("Command-line argument", "tsv-out", tsvOut)
+
 		err := os.MkdirAll(tsvOut, 0755)
 		if err != nil {
 			return fmt.Errorf("failed to create output directory: %w", err)
@@ -32,5 +35,8 @@ var tsvCmd = &cobra.Command{
 }
 
 func init() {
-	tsvCmd.Flags().StringVarP(&tsvOut, "out", "o", "tsv", "Output directory")
+	tsvCmd.Flags().StringP("tsv-out", "o", "tsv", "Output directory")
+	if err := viper.BindPFlags(tsvCmd.Flags()); err != nil {
+		slog.Error("Failed to bind tsvCmd flags", "error", err)
+	}
 }
