@@ -10,9 +10,9 @@ import (
 
 func TestExtractCmd(t *testing.T) {
 	// --stop and --live are mutually exclusive
-	_, err := executeCommand(yaci.RootCmd, "extract", "json", "foobar", "--live", "--stop", "10")
+	_, err := executeCommand(yaci.RootCmd, "extract", "postgres", "foobar", "--live", "--stop", "10")
 	assert.Error(t, err)
-	assert.ErrorContains(t, err, "if any flags in the group [live stop] are set none of the others can be; [live stop] were all set")
+	assert.ErrorContains(t, err, "cannot set --live and --stop flags together")
 
 	// Show help
 	output, err := executeCommand(yaci.RootCmd, "extract")

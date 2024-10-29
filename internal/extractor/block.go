@@ -3,16 +3,17 @@ package extractor
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"sync"
 	"time"
 
-	"github.com/liftedinit/yaci/internal/utils"
-	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/liftedinit/yaci/internal/utils"
 
 	"github.com/liftedinit/yaci/internal/models"
 	"github.com/liftedinit/yaci/internal/output"
@@ -54,8 +55,10 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 
 				err := processSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, maxRetries)
 				if err != nil {
-					slog.Error("Failed to process block after 3 retries", "height", blockHeight, "error", err)
-					errCh <- errors.WithMessagef(err, "Failed to process block %d", blockHeight)
+					if !errors.Is(err, context.Canceled) {
+						slog.Error("Failed to process block after 3 retries", "height", blockHeight, "error", err)
+					}
+					errCh <- fmt.Errorf("failed to process block %d: %w", blockHeight, err)
 				}
 			}()
 		}
@@ -65,7 +68,7 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 	close(errCh)
 
 	for err := range errCh {
-		return errors.WithMessage(err, "Error while fetching blocks")
+		return fmt.Errorf("error while fetching blocks: %w", err)
 	}
 
 	return nil
@@ -74,37 +77,51 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler, maxRetries uint) error {
 	var err error
 	for attempt := uint(1); attempt <= maxRetries; attempt++ {
+		// Check if the context has been cancelled before starting
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		err = processSingleBlock(ctx, grpcConn, resolver, blockHeight, outputHandler)
 		if err == nil {
 			return nil
 		}
-		slog.Warn("Retrying processing block", "height", blockHeight, "attempt", attempt, "error", err)
-		time.Sleep(time.Duration(2*attempt) * time.Second)
+		// Check if the context has been cancelled before retrying
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		// Wait before retrying
+		slog.Debug("Retrying processing block", "height", blockHeight, "attempt", attempt, "error", err)
+		select {
+		// Check if the context has been cancelled during the sleep
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Duration(2*attempt) * time.Second):
+		}
 	}
-	return errors.WithMessagef(err, "failed to process block %d after %d attempts", blockHeight, maxRetries)
+	return err
 }
 
 func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler) error {
 	blockServiceName, blockMethodNameOnly, err := utils.ParseMethodFullName(blockMethodFullName)
 	if err != nil {
-		return errors.WithMessage(err, "failed to parse block method full name")
+		return fmt.Errorf("failed to parse block method full name: %w", err)
 	}
 
 	blockMethodDescriptor, err := resolver.FindMethodDescriptor(blockServiceName, blockMethodNameOnly)
 	if err != nil {
-		return errors.WithMessage(err, "failed to find block method descriptor")
+		return fmt.Errorf("failed to find block method descriptor: %w", err)
 	}
 
 	blockFullMethodName := utils.BuildFullMethodName(blockMethodDescriptor)
 
 	txServiceName, txMethodNameOnly, err := utils.ParseMethodFullName(txMethodFullName)
 	if err != nil {
-		return errors.WithMessage(err, "failed to parse tx method full name")
+		return fmt.Errorf("failed to parse tx method full name: %w", err)
 	}
 
 	txMethodDescriptor, err := resolver.FindMethodDescriptor(txServiceName, txMethodNameOnly)
 	if err != nil {
-		return errors.WithMessage(err, "failed to find tx method descriptor")
+		return fmt.Errorf("failed to find tx method descriptor: %w", err)
 	}
 
 	txFullMethodName := utils.BuildFullMethodName(txMethodDescriptor)
@@ -123,7 +140,7 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 	blockInputMsg := dynamicpb.NewMessage(blockMethodDescriptor.Input())
 
 	if err := uo.Unmarshal([]byte(blockJsonParams), blockInputMsg); err != nil {
-		return errors.WithMessage(err, "failed to parse block input parameters")
+		return fmt.Errorf("failed to parse block input parameters: %w", err)
 	}
 
 	// Create the response message
@@ -131,12 +148,12 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 
 	err = grpcConn.Invoke(ctx, blockFullMethodName, blockInputMsg, blockOutputMsg)
 	if err != nil {
-		return errors.WithMessage(err, "error invoking block method")
+		return fmt.Errorf("error invoking block method: %w", err)
 	}
 
 	blockJsonBytes, err := mo.Marshal(blockOutputMsg)
 	if err != nil {
-		return errors.WithMessage(err, "failed to marshal block response")
+		return fmt.Errorf("failed to marshal block response: %w", err)
 	}
 
 	block := &models.Block{
@@ -144,21 +161,21 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 		Data: blockJsonBytes,
 	}
 
-	err = outputHandler.WriteBlock(ctx, block)
-	if err != nil {
-		return fmt.Errorf("failed to write block: %v", err)
-	}
-
 	// Process transactions
 	var data map[string]interface{}
 	if err := json.Unmarshal(blockJsonBytes, &data); err != nil {
-		return errors.WithMessage(err, "failed to unmarshal block JSON")
+		return fmt.Errorf("failed to unmarshal block JSON: %w", err)
 	}
 
 	// Get txs from block, if any
-	err = extractTransactions(ctx, grpcConn, data, txMethodDescriptor, txFullMethodName, blockHeight, outputHandler, uo, mo)
+	transactions, err := extractTransactions(ctx, grpcConn, data, txMethodDescriptor, txFullMethodName, blockHeight, outputHandler, uo, mo)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to extract transactions from block: %w", err)
+	}
+
+	err = outputHandler.WriteBlockWithTransactions(ctx, block, transactions)
+	if err != nil {
+		return fmt.Errorf("failed to write block with transactions: %w", err)
 	}
 
 	return nil

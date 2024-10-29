@@ -3,8 +3,8 @@ package reflection_test
 import (
 	"testing"
 
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 
 	"github.com/liftedinit/yaci/internal/reflection"

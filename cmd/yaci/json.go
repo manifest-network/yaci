@@ -1,12 +1,14 @@
 package yaci
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/liftedinit/yaci/internal/config"
 
 	"github.com/liftedinit/yaci/internal/output"
 )
@@ -16,21 +18,30 @@ var jsonCmd = &cobra.Command{
 	Short: "Extract chain data to JSON files",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		jsonOut := viper.GetString("json-out")
-		slog.Debug("Command-line argument", "json-out", jsonOut)
-
-		err := os.MkdirAll(jsonOut, 0755)
-		if err != nil {
-			return errors.WithMessage(err, "failed to create output directory")
+		extractConfig := config.LoadExtractConfigFromCLI()
+		if err := extractConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid Extract configuration: %w", err)
+		}
+		jsonConfig := config.LoadJSONConfigFromCLI()
+		if err := jsonConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid JSON configuration: %w", err)
 		}
 
-		outputHandler, err := output.NewJSONOutputHandler(jsonOut)
+		err := os.MkdirAll(jsonConfig.Output, 0755)
 		if err != nil {
-			return errors.WithMessage(err, "failed to create JSON output handler")
+			return fmt.Errorf("failed to create output directory: %w", err)
+		}
+
+		outputHandler, err := output.NewJSONOutputHandler(jsonConfig.Output)
+		if err != nil {
+			return fmt.Errorf("failed to create JSON output handler: %w", err)
 		}
 		defer outputHandler.Close()
 
-		return extract(args[0], outputHandler)
+		// TODO: Resume from the latest block
+
+		//return extractor.Extract(args[0], outputHandler, extractConfig)
+		return nil
 	},
 }
 

@@ -7,11 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/liftedinit/yaci/internal/reflection"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/liftedinit/yaci/internal/reflection"
 )
 
 func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) (uint64, error) {
@@ -59,7 +60,7 @@ func GetLatestBlockHeightWithRetry(ctx context.Context, conn *grpc.ClientConn, r
 		if err == nil {
 			return latestHeight, nil
 		}
-		slog.Warn("Retrying getting latest block height", "attempt", attempt, "error", err)
+		slog.Debug("Retrying getting latest block height", "attempt", attempt, "error", err)
 		time.Sleep(time.Duration(2*attempt) * time.Second)
 	}
 

@@ -4,7 +4,6 @@ go 1.23.1
 
 require (
 	github.com/go-resty/resty/v2 v2.15.3
-	github.com/golang/protobuf v1.5.3
 	github.com/gruntwork-io/terratest v0.47.2
 	github.com/jackc/pgx/v4 v4.18.3
 	github.com/pkg/errors v0.9.1

@@ -9,8 +9,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/pkg/errors"
-
 	"github.com/liftedinit/yaci/internal/models"
 )
 
@@ -30,7 +28,7 @@ const (
 func NewTSVOutputHandler(outDir string) (*TSVOutputHandler, error) {
 	err := os.MkdirAll(outDir, 0755)
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to create output directory")
+		return nil, fmt.Errorf("failed to create output directory: %w", err)
 	}
 
 	blockFilePath := filepath.Join(outDir, blocksTSV)
@@ -38,12 +36,12 @@ func NewTSVOutputHandler(outDir string) (*TSVOutputHandler, error) {
 
 	blockFile, err := os.Create(blockFilePath)
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to create blocks TSV file")
+		return nil, fmt.Errorf("failed to create blocks TSV file: %w", err)
 	}
 
 	txFile, err := os.Create(txFilePath)
 	if err != nil {
-		return nil, errors.WithMessage(err, "failed to create transactions TSV file: %v")
+		return nil, fmt.Errorf("failed to create transactions TSV file: %w", err)
 	}
 
 	return &TSVOutputHandler{
@@ -54,7 +52,23 @@ func NewTSVOutputHandler(outDir string) (*TSVOutputHandler, error) {
 	}, nil
 }
 
-func (h *TSVOutputHandler) WriteBlock(ctx context.Context, block *models.Block) error {
+func (h *TSVOutputHandler) WriteBlockWithTransactions(_ context.Context, block *models.Block, transactions []*models.Transaction) error {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if err := h.writeBlock(block); err != nil {
+		return fmt.Errorf("failed to write block: %w", err)
+	}
+
+	for _, tx := range transactions {
+		if err := h.writeTransaction(tx); err != nil {
+			return fmt.Errorf("failed to write transaction: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (h *TSVOutputHandler) writeBlock(block *models.Block) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	line := fmt.Sprintf("%d\t%s\n", block.ID, string(block.Data))
@@ -62,7 +76,7 @@ func (h *TSVOutputHandler) WriteBlock(ctx context.Context, block *models.Block) 
 	return err
 }
 
-func (h *TSVOutputHandler) WriteTransaction(ctx context.Context, tx *models.Transaction) error {
+func (h *TSVOutputHandler) writeTransaction(tx *models.Transaction) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	line := fmt.Sprintf("%s\t%s\n", tx.Hash, string(tx.Data))

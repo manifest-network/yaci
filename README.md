@@ -15,10 +15,7 @@ Off-chain indexing of block & transaction data.
 
 ## Features
 
-- Ability to extract block and transaction chain data to various output formats:
-  - JSON
-  - TSV
-  - PostgreSQL
+- Ability to extract block and transaction chain data to PostgreSQL. JSON and TSV formats are disabled for now.
 - Supports server reflection; no need to specify the proto file.
 - (Nested) `Any` type are properly decoded.
 - Live monitoring of the blockchain.
@@ -142,10 +139,11 @@ This command will connect to the gRPC server running on `localhost:9090`, contin
 
 ## Configuration
 
-The `yaci` tool parameters can be configured from the following sources:
+The `yaci` tool parameters can be configured from the following sources
+
 
 - Environment variables (prefixed with `YACI_`)
-- Configuration file (`config.yaml`, `config.json`, `config.toml`, `config.hcl`, `config.env`)
+- Configuration file (`config.yaml`, `config.json`, `config.toml`, `config.hcl`, [~~`config.env`~~](https://github.com/liftedinit/yaci/issues/15) )
 - Command-line flags
 
 The command-line flags have the highest priority, followed by the environment variables, and then the configuration file.
