@@ -36,7 +36,7 @@ func TestPostgres(t *testing.T) {
 
 	// Run the YACI command to extract the chain data to a PostgreSQL database
 	cmd := yaci.RootCmd
-	cmd.SetArgs([]string{"extract", "postgres", GRPCEndpoint, PsqlConnectionString, "-k"})
+	cmd.SetArgs([]string{"extract", "postgres", GRPCEndpoint, "-p", PsqlConnectionString, "-k"})
 
 	// Execute the command. This will extract the chain data to a PostgreSQL database up to the latest block.
 	err = cmd.Execute()

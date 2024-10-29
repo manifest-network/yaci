@@ -10,21 +10,12 @@ import (
 	"github.com/liftedinit/yaci/internal/utils"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/liftedinit/yaci/internal/client"
 	"github.com/liftedinit/yaci/internal/extractor"
 	"github.com/liftedinit/yaci/internal/output"
 	"github.com/liftedinit/yaci/internal/reflection"
-)
-
-var (
-	start          uint64
-	stop           uint64
-	insecure       bool
-	live           bool
-	blockTime      uint
-	maxConcurrency uint
-	maxRetries     uint
 )
 
 var ExtractCmd = &cobra.Command{
@@ -34,13 +25,17 @@ var ExtractCmd = &cobra.Command{
 }
 
 func init() {
-	ExtractCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Skip TLS certificate verification (INSECURE)")
-	ExtractCmd.PersistentFlags().BoolVar(&live, "live", false, "Enable live monitoring")
-	ExtractCmd.PersistentFlags().Uint64VarP(&start, "start", "s", 1, "Start block height")
-	ExtractCmd.PersistentFlags().Uint64VarP(&stop, "stop", "e", 0, "Stop block height")
-	ExtractCmd.PersistentFlags().UintVarP(&blockTime, "block-time", "t", 2, "Block time in seconds")
-	ExtractCmd.PersistentFlags().UintVarP(&maxRetries, "max-retries", "r", 3, "Maximum number of retries for failed block processing")
-	ExtractCmd.PersistentFlags().UintVarP(&maxConcurrency, "max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
+	ExtractCmd.PersistentFlags().BoolP("insecure", "k", false, "Skip TLS certificate verification (INSECURE)")
+	ExtractCmd.PersistentFlags().Bool("live", false, "Enable live monitoring")
+	ExtractCmd.PersistentFlags().Uint64P("start", "s", 1, "Start block height")
+	ExtractCmd.PersistentFlags().Uint64P("stop", "e", 0, "Stop block height")
+	ExtractCmd.PersistentFlags().UintP("block-time", "t", 2, "Block time in seconds")
+	ExtractCmd.PersistentFlags().UintP("max-retries", "r", 3, "Maximum number of retries for failed block processing")
+	ExtractCmd.PersistentFlags().UintP("max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
+
+	if err := viper.BindPFlags(ExtractCmd.PersistentFlags()); err != nil {
+		slog.Error("Failed to bind ExtractCmd flags", "error", err)
+	}
 
 	// TODO: Clashes with the Docker test. Why?
 	ExtractCmd.MarkFlagsMutuallyExclusive("live", "stop")
@@ -51,6 +46,16 @@ func init() {
 }
 
 func extract(address string, outputHandler output.OutputHandler) error {
+	insecure := viper.GetBool("insecure")
+	live := viper.GetBool("live")
+	start := viper.GetUint64("start")
+	stop := viper.GetUint64("stop")
+	blockTime := viper.GetUint("block-time")
+	maxConcurrency := viper.GetUint("max-concurrency")
+	maxRetries := viper.GetUint("max-retries")
+
+	slog.Debug("Command-line arguments", "address", address, "insecure", insecure, "live", live, "start", start, "stop", stop, "block_time", blockTime, "max_concurrency", maxConcurrency, "max_retries", maxRetries)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -63,7 +68,7 @@ func extract(address string, outputHandler output.OutputHandler) error {
 		cancel()
 	}()
 
-	slog.Info("Initializing gRPC client pool", "address", address, "insecure", insecure, "max-concurrency", maxConcurrency, "max-retries", maxRetries)
+	slog.Info("Initializing gRPC client pool...")
 	grpcConn := client.NewGRPCClients(ctx, address, insecure)
 	defer grpcConn.Close()
 
