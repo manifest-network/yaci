@@ -3,6 +3,7 @@ package reflection
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
@@ -21,12 +22,13 @@ type CustomResolver struct {
 	ctx         context.Context
 	seenSymbols map[string]bool
 	maxRetries  uint
+	mu          sync.Mutex
 }
 
 // NewCustomResolver creates a new instance of CustomResolver.
 func NewCustomResolver(files *protoregistry.Files, grpcConn *grpc.ClientConn, ctx context.Context, maxRetries uint) *CustomResolver {
 	return &CustomResolver{
-		files:       files,
+		files:       files, // Note: The protoregistry.Files type is safe for concurrent use by multiple goroutines, but it is not safe to concurrently mutate the registry while also being used.
 		grpcConn:    grpcConn,
 		ctx:         ctx,
 		seenSymbols: make(map[string]bool),
@@ -34,15 +36,41 @@ func NewCustomResolver(files *protoregistry.Files, grpcConn *grpc.ClientConn, ct
 	}
 }
 
-// Files returns the registry's files.
-func (r *CustomResolver) Files() *protoregistry.Files {
-	return r.files
+func (r *CustomResolver) FindMethodDescriptor(serviceName, methodName string) (protoreflect.MethodDescriptor, error) {
+	var methodDesc protoreflect.MethodDescriptor
+	var found bool
+	r.mu.Lock()
+	r.files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
+		services := fd.Services()
+		for i := 0; i < services.Len(); i++ {
+			svc := services.Get(i)
+			if string(svc.FullName()) == serviceName {
+				methods := svc.Methods()
+				for j := 0; j < methods.Len(); j++ {
+					m := methods.Get(j)
+					if string(m.Name()) == methodName {
+						methodDesc = m
+						found = true
+						return false
+					}
+				}
+			}
+		}
+		return true
+	})
+	r.mu.Unlock()
+	if !found {
+		return nil, fmt.Errorf("method %s not found in service %s", methodName, serviceName)
+	}
+	return methodDesc, nil
 }
 
 // FindMessageByName finds a message descriptor by its name.
 func (r *CustomResolver) FindMessageByName(name protoreflect.FullName) (protoreflect.MessageType, error) {
 	// First, try to find the message in the existing registry
+	r.mu.Lock()
 	desc, _ := r.files.FindDescriptorByName(name)
+	r.mu.Unlock()
 
 	if desc != nil {
 		msgDesc, ok := desc.(protoreflect.MessageDescriptor)
@@ -59,7 +87,9 @@ func (r *CustomResolver) FindMessageByName(name protoreflect.FullName) (protoref
 	}
 
 	// Try to find the message again after fetching
+	r.mu.Lock()
 	desc, err := r.files.FindDescriptorByName(name)
+	r.mu.Unlock()
 	if err != nil {
 		return nil, errors.WithMessagef(err, "failed to find message by name %s", name)
 	}
@@ -92,10 +122,13 @@ func (r *CustomResolver) FindExtensionByNumber(_ protoreflect.FullName, _ protor
 }
 
 func (r *CustomResolver) fetchDescriptorBySymbol(symbol string) error {
+	r.mu.Lock()
 	if r.seenSymbols[symbol] {
+		r.mu.Unlock()
 		return nil
 	}
 	r.seenSymbols[symbol] = true
+	r.mu.Unlock()
 
 	// Create the request to fetch file descriptors containing the symbol
 	req := &reflection.ServerReflectionRequest{
@@ -130,16 +163,21 @@ func (r *CustomResolver) fetchDescriptorByName(name string, maxRetries uint) err
 
 // processFileDescriptors processes the fetched file descriptors and recursively fetches their dependencies.
 func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDescriptorProto, maxRetries uint) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	for _, fdProto := range fdProtos {
 		name := fdProto.GetName()
-		if _, err := r.files.FindFileByPath(name); err == nil {
+		_, err := r.files.FindFileByPath(name)
+		if err == nil {
 			// Already registered
 			continue
 		}
 
 		// Recursively fetch dependencies
 		for _, dep := range fdProto.Dependency {
-			if _, err := r.files.FindFileByPath(dep); err != nil {
+			_, err := r.files.FindFileByPath(dep)
+			if err != nil {
 				if err := r.fetchDescriptorByName(dep, maxRetries); err != nil {
 					return errors.WithMessagef(err, "failed to fetch dependency %s", dep)
 				}
@@ -151,7 +189,9 @@ func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDes
 			return errors.WithMessagef(err, "failed to create file descriptor for %s", name)
 		}
 
-		if err := r.files.RegisterFile(fd); err != nil {
+		err = r.files.RegisterFile(fd)
+
+		if err != nil {
 			return errors.WithMessagef(err, "failed to register file %s", name)
 		}
 	}
