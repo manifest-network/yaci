@@ -5,6 +5,58 @@ build: ## Build the binary
 	@echo "--> Building development binary"
 	@go build -ldflags="-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -o bin/yaci ./main.go
 
+.PHONY: build
+
+#### Test ####
+test: ## Run tests
+	@echo "--> Running tests"
+	@go test -v -short -race ./...
+
+test-e2e: ## Run end-to-end tests
+	@echo "--> Running end-to-end tests"
+	@go test -v -race ./cmd/yaci/postgres_test.go
+
+.PHONY: test test-e2e
+
+#### Coverage ####
+COV_ROOT="/tmp/yaci-coverage"
+COV_UNIT="${COV_ROOT}/unit"
+COV_E2E="${COV_ROOT}/e2e"
+COV_PKG="github.com/liftedinit/yaci/..."
+
+coverage: ## Run tests with coverage
+	@echo "--> Creating GOCOVERDIR"
+	@mkdir -p ${COV_UNIT} ${COV_E2E}
+	@echo "--> Cleaning up coverage files, if any"
+	@rm -rf ${COV_UNIT}/* ${COV_E2E}/*
+	@echo "--> Running short tests with coverage"
+	@go test -v -short -timeout 30m -race -covermode=atomic -cover -cpu=$$(nproc) -coverpkg=${COV_PKG} ./... -args -test.gocoverdir="${COV_UNIT}"
+	@echo "--> Running end-to-end tests with coverage"
+	@go test -v -race -timeout 30m -race -covermode=atomic -cover -cpu=$$(nproc) -coverpkg=${COV_PKG} ./cmd/yaci/postgres_test.go -args -test.gocoverdir="${COV_E2E}"
+	@echo "--> Merging coverage reports"
+	@go tool covdata merge -i=${COV_UNIT},${COV_E2E} -o ${COV_ROOT}
+	@echo "--> Converting binary coverage report to text format"
+	@go tool covdata textfmt -i=${COV_ROOT} -o ${COV_ROOT}/coverage-merged.out
+	@echo "--> Generating coverage report"
+	@go tool cover -func=${COV_ROOT}/coverage-merged.out
+	@echo "--> Generating HTML coverage report"
+	@go tool cover -html=${COV_ROOT}/coverage-merged.out -o coverage.html
+	@echo "--> Coverage report available at coverage.html"
+	@echo "--> Cleaning up coverage files"
+	@rm -rf ${COV_UNIT}/* ${COV_E2E}/*
+	@echo "--> Running coverage complete"
+
+#### Docker ####
+docker-up:
+	@echo "--> Running docker compose up --build --wait -d"
+	@docker compose -f docker/yaci.yml up --build --wait -d
+
+docker-down:
+	@echo "--> Running docker compose down -v"
+	@docker compose -f docker/yaci.yml down -v
+
+.PHONY: docker-up docker-down
+
 ####  Linting  ####
 golangci_lint_cmd=golangci-lint
 golangci_version=v1.61.0

@@ -22,7 +22,7 @@ var (
 	validLogLevelsStr = strings.Join(slices.Sorted(maps.Keys(validLogLevels)), "|")
 )
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "yaci",
 	Short: "Extract chain data",
 	Long:  `yaci connects to a gRPC server and extracts blockchain data.`,
@@ -52,13 +52,13 @@ func setLogLevel(logLevel string) error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringP("logLevel", "l", "info", fmt.Sprintf("set log level (%s)", validLogLevelsStr))
-	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
+	RootCmd.PersistentFlags().StringP("logLevel", "l", "info", fmt.Sprintf("set log level (%s)", validLogLevelsStr))
+	if err := viper.BindPFlags(RootCmd.PersistentFlags()); err != nil {
 		slog.Error("Failed to bind rootCmd flags", "error", err)
 	}
 
-	rootCmd.SilenceUsage = true
-	rootCmd.SilenceErrors = true
+	RootCmd.SilenceUsage = true
+	RootCmd.SilenceErrors = true
 
 	viper.SetConfigName("config")
 	viper.AddConfigPath(".")
@@ -69,8 +69,8 @@ func init() {
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 
-	rootCmd.AddCommand(ExtractCmd)
-	rootCmd.AddCommand(versionCmd)
+	RootCmd.AddCommand(ExtractCmd)
+	RootCmd.AddCommand(versionCmd)
 }
 
 // Execute runs the root command.
@@ -81,7 +81,7 @@ func Execute() {
 		slog.Info("No config file found")
 	}
 
-	if err := rootCmd.Execute(); err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		slog.Error("An error occurred", "error", err)
 		os.Exit(1)
 	}

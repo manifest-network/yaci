@@ -11,13 +11,9 @@ import (
 	"github.com/liftedinit/yaci/internal/output"
 )
 
-var postgresCmd = &cobra.Command{
-	Use:   "postgres [address] [flags]",
-	Short: "Extract chain data to a PostgreSQL database",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		postgresConn := viper.GetString("postgres-conn")
-		slog.Debug("Command-line argument", "postgres-conn", postgresConn)
+var PostgresRunE = func(cmd *cobra.Command, args []string) error {
+	postgresConn := viper.GetString("postgres-conn")
+	slog.Debug("Command-line argument", "postgres-conn", postgresConn)
 
 		_, err := pgxpool.ParseConfig(postgresConn)
 		if err != nil {
@@ -39,13 +35,19 @@ var postgresCmd = &cobra.Command{
 		//	start = latestBlock.ID + 1
 		//}
 
-		return extract(args[0], outputHandler)
-	},
+	return extract(args[0], outputHandler)
+}
+
+var PostgresCmd = &cobra.Command{
+	Use:   "postgres [address] [flags]",
+	Short: "Extract chain data to a PostgreSQL database",
+	Args:  cobra.ExactArgs(1),
+	RunE:  PostgresRunE,
 }
 
 func init() {
-	postgresCmd.Flags().StringP("postgres-conn", "p", "", "PosftgreSQL connection string")
-	if err := viper.BindPFlags(postgresCmd.Flags()); err != nil {
+	PostgresCmd.Flags().StringP("postgres-conn", "p", "", "PosftgreSQL connection string")
+	if err := viper.BindPFlags(PostgresCmd.Flags()); err != nil {
 		slog.Error("Failed to bind postgresCmd flags", "error", err)
 	}
 }
