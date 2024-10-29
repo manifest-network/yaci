@@ -7,9 +7,10 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/gruntwork-io/terratest/modules/docker"
+	"github.com/stretchr/testify/require"
+
 	"github.com/liftedinit/yaci/cmd/yaci"
 	"github.com/liftedinit/yaci/internal/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 const (

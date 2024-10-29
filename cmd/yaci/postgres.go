@@ -5,10 +5,11 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/liftedinit/yaci/internal/config"
-	"github.com/liftedinit/yaci/internal/extractor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/liftedinit/yaci/internal/config"
+	"github.com/liftedinit/yaci/internal/extractor"
 
 	"github.com/liftedinit/yaci/internal/output"
 )

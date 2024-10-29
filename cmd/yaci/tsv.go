@@ -5,9 +5,10 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/liftedinit/yaci/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+
+	"github.com/liftedinit/yaci/internal/config"
 
 	"github.com/liftedinit/yaci/internal/output"
 )

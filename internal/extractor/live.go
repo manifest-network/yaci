@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/liftedinit/yaci/internal/output"
 	"github.com/liftedinit/yaci/internal/reflection"
 	"github.com/liftedinit/yaci/internal/utils"
-	"google.golang.org/grpc"
 )
 
 // ExtractLiveBlocksAndTransactions monitors the chain and processes new blocks as they are produced.

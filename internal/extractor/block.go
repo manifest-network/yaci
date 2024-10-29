@@ -9,10 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/liftedinit/yaci/internal/utils"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/dynamicpb"
+
+	"github.com/liftedinit/yaci/internal/utils"
 
 	"github.com/liftedinit/yaci/internal/models"
 	"github.com/liftedinit/yaci/internal/output"
