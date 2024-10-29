@@ -5,6 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/liftedinit/yaci/internal/config"
+	"github.com/liftedinit/yaci/internal/extractor"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -12,30 +14,30 @@ import (
 )
 
 var PostgresRunE = func(cmd *cobra.Command, args []string) error {
-	postgresConn := viper.GetString("postgres-conn")
-	slog.Debug("Command-line argument", "postgres-conn", postgresConn)
+	extractConfig := config.LoadExtractConfigFromCLI()
+	if err := extractConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid Extract configuration: %w", err)
+	}
 
-		_, err := pgxpool.ParseConfig(postgresConn)
-		if err != nil {
-			return fmt.Errorf("failed to parse PostgreSQL connection string: %w", err)
-		}
+	postgresConfig := config.LoadPostgresConfigFromCLI()
+	if err := postgresConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid PostgreSQL configuration: %w", err)
+	}
 
-		outputHandler, err := output.NewPostgresOutputHandler(postgresConn)
-		if err != nil {
-			return fmt.Errorf("failed to create PostgreSQL output handler: %w", err)
-		}
-		defer outputHandler.Close()
+	slog.Debug("Command-line arguments", "extractConfig", extractConfig, "postgresConfig", postgresConfig)
 
-		//latestBlock, err := outputHandler.GetLatestBlock(cmd.Context())
-		//if err != nil {
-		//	return fmt.Errorf("failed to get the latest block: %w", err)
-		//}
-		//if latestBlock != nil {
-		//	slog.Info("Resuming from block", "height", latestBlock.ID)
-		//	start = latestBlock.ID + 1
-		//}
+	_, err := pgxpool.ParseConfig(postgresConfig.ConnString)
+	if err != nil {
+		return fmt.Errorf("failed to parse PostgreSQL connection string: %w", err)
+	}
 
-	return extract(args[0], outputHandler)
+	outputHandler, err := output.NewPostgresOutputHandler(postgresConfig.ConnString)
+	if err != nil {
+		return fmt.Errorf("failed to create PostgreSQL output handler: %w", err)
+	}
+	defer outputHandler.Close()
+
+	return extractor.Extract(args[0], outputHandler, extractConfig)
 }
 
 var PostgresCmd = &cobra.Command{

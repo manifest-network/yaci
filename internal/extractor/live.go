@@ -13,7 +13,7 @@ import (
 
 // ExtractLiveBlocksAndTransactions monitors the chain and processes new blocks as they are produced.
 func ExtractLiveBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start uint64, outputHandler output.OutputHandler, blockTime, maxConcurrency, maxRetries uint) error {
-	currentHeight := start
+	currentHeight := start - 1
 	for {
 		select {
 		case <-ctx.Done():

@@ -59,7 +59,7 @@ func GetLatestBlockHeightWithRetry(ctx context.Context, conn *grpc.ClientConn, r
 		if err == nil {
 			return latestHeight, nil
 		}
-		slog.Warn("Retrying getting latest block height", "attempt", attempt, "error", err)
+		slog.Debug("Retrying getting latest block height", "attempt", attempt, "error", err)
 		time.Sleep(time.Duration(2*attempt) * time.Second)
 	}
 

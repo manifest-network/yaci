@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/liftedinit/yaci/internal/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -16,21 +17,31 @@ var tsvCmd = &cobra.Command{
 	Short: "Extract chain data to TSV files",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		tsvOut := viper.GetString("tsv-out")
-		slog.Debug("Command-line argument", "tsv-out", tsvOut)
+		extractConfig := config.LoadExtractConfigFromCLI()
+		if err := extractConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid Extract configuration: %w", err)
+		}
 
-		err := os.MkdirAll(tsvOut, 0755)
+		tsvConfig := config.LoadTSVConfigFromCLI()
+		if err := tsvConfig.Validate(); err != nil {
+			return fmt.Errorf("invalid TSV configuration: %w", err)
+		}
+
+		err := os.MkdirAll(tsvConfig.Output, 0755)
 		if err != nil {
 			return fmt.Errorf("failed to create output directory: %w", err)
 		}
 
-		outputHandler, err := output.NewTSVOutputHandler(tsvOut)
+		outputHandler, err := output.NewTSVOutputHandler(tsvConfig.Output)
 		if err != nil {
 			return fmt.Errorf("failed to create TSV output handler: %w", err)
 		}
 		defer outputHandler.Close()
 
-		return extract(args[0], outputHandler)
+		// TODO: Resume from the latest block
+
+		//return extractor.Extract(args[0], outputHandler, extractConfig)
+		return nil
 	},
 }
 

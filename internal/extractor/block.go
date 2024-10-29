@@ -89,7 +89,7 @@ func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn,
 			return ctx.Err()
 		}
 		// Wait before retrying
-		slog.Warn("Retrying processing block", "height", blockHeight, "attempt", attempt, "error", err)
+		slog.Debug("Retrying processing block", "height", blockHeight, "attempt", attempt, "error", err)
 		select {
 		// Check if the context has been cancelled during the sleep
 		case <-ctx.Done():
