@@ -16,6 +16,7 @@ var ExtractCmd = &cobra.Command{
 func init() {
 	ExtractCmd.PersistentFlags().BoolP("insecure", "k", false, "Skip TLS certificate verification (INSECURE)")
 	ExtractCmd.PersistentFlags().Bool("live", false, "Enable live monitoring")
+	ExtractCmd.PersistentFlags().Bool("reindex", false, "Reindex the database from block 1 to the latest block (advanced)")
 	ExtractCmd.PersistentFlags().Uint64P("start", "s", 0, "Start block height")
 	ExtractCmd.PersistentFlags().Uint64P("stop", "e", 0, "Stop block height")
 	ExtractCmd.PersistentFlags().UintP("block-time", "t", 2, "Block time in seconds")

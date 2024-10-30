@@ -98,6 +98,11 @@ func initializeGRPC(ctx context.Context, address string, cfg config.ExtractConfi
 // If the stop block is not set, it will be set to the latest block in the gRPC server.
 // If the start block is greater than the stop block, an error will be returned.
 func setBlockRange(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, outputHandler output.OutputHandler, cfg *config.ExtractConfig) error {
+	if cfg.ReIndex {
+		cfg.BlockStart = 1
+		cfg.BlockStop = 0
+	}
+
 	if cfg.BlockStart == 0 {
 		cfg.BlockStart = 1
 		latestLocalBlock, err := outputHandler.GetLatestBlock(ctx)
