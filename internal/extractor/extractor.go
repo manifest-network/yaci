@@ -99,6 +99,7 @@ func initializeGRPC(ctx context.Context, address string, cfg config.ExtractConfi
 // If the start block is greater than the stop block, an error will be returned.
 func setBlockRange(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, outputHandler output.OutputHandler, cfg *config.ExtractConfig) error {
 	if cfg.ReIndex {
+		slog.Info("Reindexing entire database...")
 		cfg.BlockStart = 1
 		cfg.BlockStop = 0
 	}
@@ -131,7 +132,7 @@ func setBlockRange(ctx context.Context, grpcConn *grpc.ClientConn, resolver *ref
 
 // shouldSkipMissingBlockCheck returns true if the missing block check should be skipped.
 func shouldSkipMissingBlockCheck(cfg config.ExtractConfig) bool {
-	return cfg.BlockStart != 0 && cfg.BlockStop != 0
+	return (cfg.BlockStart != 0 && cfg.BlockStop != 0) || cfg.ReIndex
 }
 
 // processMissingBlocks processes missing blocks by fetching them from the gRPC server.
