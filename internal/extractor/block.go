@@ -53,7 +53,7 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				err := processSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, maxRetries)
+				err := ProcessSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, maxRetries)
 				if err != nil {
 					if !errors.Is(err, context.Canceled) {
 						slog.Error("Failed to process block after 3 retries", "height", blockHeight, "error", err)
@@ -74,7 +74,7 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 	return nil
 }
 
-func processSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler, maxRetries uint) error {
+func ProcessSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler, maxRetries uint) error {
 	var err error
 	for attempt := uint(1); attempt <= maxRetries; attempt++ {
 		// Check if the context has been cancelled before starting

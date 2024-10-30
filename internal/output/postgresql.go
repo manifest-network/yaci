@@ -54,6 +54,33 @@ func (h *PostgresOutputHandler) GetLatestBlock(ctx context.Context) (*models.Blo
 	return &block, nil
 }
 
+func (h *PostgresOutputHandler) GetMissingBlockIds(ctx context.Context) ([]uint64, error) {
+	rows, err := h.pool.Query(ctx, `
+		SELECT s.id
+		FROM generate_series(
+				 1,
+				 (SELECT MAX(id) FROM api.blocks)
+			 ) AS s(id)
+		LEFT JOIN api.blocks t ON t.id = s.id
+		WHERE t.id IS NULL;
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get missing block IDs: %w", err)
+	}
+	defer rows.Close()
+
+	var missing []uint64
+	for rows.Next() {
+		var id uint64
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("failed to scan missing block ID: %w", err)
+		}
+		missing = append(missing, id)
+	}
+
+	return missing, nil
+}
+
 func (h *PostgresOutputHandler) WriteBlockWithTransactions(ctx context.Context, block *models.Block, transactions []*models.Transaction) error {
 	tx, err := h.pool.Begin(ctx)
 	if err != nil {
