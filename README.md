@@ -19,7 +19,7 @@ Off-chain indexing of block & transaction data.
 
 ## Features
 
-- Ability to extract block and transaction chain data to PostgreSQL. JSON and TSV formats are disabled for now.
+- Ability to extract block and transaction chain data to PostgreSQL.
 - Supports server reflection; no need to specify the proto file.
 - (Nested) `Any` type are properly decoded.
 - Live monitoring of the blockchain.
@@ -63,60 +63,13 @@ The following flags are available for all `extract` subcommand:
 - `-e`, `--stop` - The stopping block height to extract data from (default: 1)
 - `-k`, `--insecure` - Skip TLS certificate verification (default: false)'
 - `--live` - Continuously extract data from the blockchain (default: false)
+- `--reindex` - Reindex the entire database from block 1 (default: false)'
 - `-r`, `--max-retries` - The maximum number of retries to connect to the gRPC server (default: 3)
 - `-c`, `--max-concurrency` - The maximum number of concurrent requests to the gRPC server (default: 100)
 
 ### Subcommands
 
-- `json` - Extracts blockchain data to JSON files.
-- `tsv` - Extracts blockchain data to TSV files.
 - `postgres` - Extracts blockchain data to a PostgreSQL database.
-
-### JSON Subcommand
-
-Extract blockchain data and output it in JSON format.
-
-#### Usage
-
-```
-Usage:
-  yaci extract json [address] [flags]
-```
-
-#### Flags
-
-- `-o`, `--out` - The output directory to store the extracted data (default: "out")
-
-#### Example
-
-```shell
-yaci extract json localhost:9090 -k -s 1 -e 100 -o ./data
-```
-
-This command will connect to the gRPC server running on `localhost:9090`, extract data from block height `1` to `100`, and store the extracted data in the `data` directory.
-
-### TSV Subcommand
-
-Extract blockchain data and output it in TSV format.
-
-#### Usage
-
-```
-Usage:
-  yaci extract tsv [address] [flags]
-```
-
-#### Flags
-
-- `-o`, `--out` - The output directory to store the extracted data (default: "tsv")
-
-#### Example
-
-```shell
-yaci extract tsv localhost:9090 -k -s 1 -e 100
-```
-
-This command will connect to the gRPC server running on `localhost:9090`, extract data from block height `1` to `100`, and store the extracted data in the `tsv` directory in the `blocks.tsv` and `transactions.tsv` files.
 
 ### PostgreSQL Subcommand
 
