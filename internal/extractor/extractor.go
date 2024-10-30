@@ -8,12 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"google.golang.org/grpc"
+
 	"github.com/liftedinit/yaci/internal/client"
 	"github.com/liftedinit/yaci/internal/config"
 	"github.com/liftedinit/yaci/internal/output"
 	"github.com/liftedinit/yaci/internal/reflection"
 	"github.com/liftedinit/yaci/internal/utils"
-	"google.golang.org/grpc"
 )
 
 // Extract extracts blocks and transactions from a gRPC server.
