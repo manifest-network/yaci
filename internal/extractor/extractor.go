@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"google.golang.org/grpc"
+
 	"github.com/liftedinit/yaci/internal/client"
 	"github.com/liftedinit/yaci/internal/config"
 	"github.com/liftedinit/yaci/internal/output"
@@ -20,61 +22,25 @@ func Extract(address string, outputHandler output.OutputHandler, config config.E
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Handle interrupt signals for graceful shutdown
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
-	go func() {
-		<-c
-		slog.Info("Received interrupt signal, shutting down...")
-		cancel()
-	}()
+	handleInterrupt(cancel)
 
-	slog.Info("Initializing gRPC client pool...")
-	grpcConn := client.NewGRPCClients(ctx, address, config.Insecure)
+	grpcConn, resolver, err := initializeGRPC(ctx, address, config)
+	if err != nil {
+		return fmt.Errorf("failed to initialize gRPC: %w", err)
+	}
 	defer grpcConn.Close()
 
-	slog.Info("Fetching protocol buffer descriptors from gRPC server... This may take a while.")
-	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcConn, config.MaxRetries)
-	if err != nil {
-		return fmt.Errorf("failed to fetch descriptors: %w", err)
+	// Check if the missing block check should be skipped before setting the block range
+	skipMissingBlockCheck := shouldSkipMissingBlockCheck(config)
+
+	if err := setBlockRange(ctx, grpcConn, resolver, outputHandler, &config); err != nil {
+		return err
 	}
 
-	slog.Info("Building protocol buffer descriptor set...")
-	files, err := reflection.BuildFileDescriptorSet(descriptors)
-	if err != nil {
-		return fmt.Errorf("failed to build descriptor set: %w", err)
-	}
-
-	resolver := reflection.NewCustomResolver(files, grpcConn, ctx, config.MaxRetries)
-
-	if config.BlockStart == 0 {
-		// Set the start block to the latest local block + 1 if not specified
-		// If the latest local block is not available, start from block 1
-		config.BlockStart = 1
-
-		latestLocalBlock, err := outputHandler.GetLatestBlock(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to get the latest block: %w", err)
+	if !skipMissingBlockCheck {
+		if err := processMissingBlocks(ctx, grpcConn, resolver, outputHandler, config); err != nil {
+			return err
 		}
-		if latestLocalBlock != nil {
-			config.BlockStart = latestLocalBlock.ID + 1
-		}
-	}
-
-	if config.BlockStop == 0 {
-		// Set the stop block to the latest remote block if not specified
-		// If the latest remote block is not available, stop at the latest block
-		config.BlockStop = 1
-
-		latestRemoteBlock, err := utils.GetLatestBlockHeightWithRetry(ctx, grpcConn, resolver, config.MaxRetries)
-		if err != nil {
-			return fmt.Errorf("failed to get the latest block: %w", err)
-		}
-		config.BlockStop = latestRemoteBlock
-	}
-
-	if config.BlockStart > config.BlockStop {
-		return fmt.Errorf("start block is greater than stop block")
 	}
 
 	if config.LiveMonitoring {
@@ -91,5 +57,92 @@ func Extract(address string, outputHandler output.OutputHandler, config config.E
 		}
 	}
 
+	return nil
+}
+
+// handleInterrupt handles interrupt signals for graceful shutdown.
+func handleInterrupt(cancel context.CancelFunc) {
+	// Handle interrupt signals for graceful shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		slog.Info("Received interrupt signal, shutting down...")
+		cancel()
+	}()
+}
+
+// initializeGRPC initializes the gRPC client, fetches protocol buffer descriptors & creates the PB resolver.
+func initializeGRPC(ctx context.Context, address string, cfg config.ExtractConfig) (*grpc.ClientConn, *reflection.CustomResolver, error) {
+	slog.Info("Initializing gRPC client pool...")
+	grpcConn := client.NewGRPCClients(ctx, address, cfg.Insecure)
+
+	slog.Info("Fetching protocol buffer descriptors from gRPC server... This may take a while.")
+	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcConn, cfg.MaxRetries)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to fetch descriptors: %w", err)
+	}
+
+	slog.Info("Building protocol buffer descriptor set...")
+	files, err := reflection.BuildFileDescriptorSet(descriptors)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build descriptor set: %w", err)
+	}
+
+	resolver := reflection.NewCustomResolver(files, grpcConn, ctx, cfg.MaxRetries)
+	return grpcConn, resolver, nil
+}
+
+// setBlockRange sets correct the block range based on the configuration.
+// If the start block is not set, it will be set to the latest block in the database.
+// If the stop block is not set, it will be set to the latest block in the gRPC server.
+// If the start block is greater than the stop block, an error will be returned.
+func setBlockRange(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, outputHandler output.OutputHandler, cfg *config.ExtractConfig) error {
+	if cfg.BlockStart == 0 {
+		cfg.BlockStart = 1
+		latestLocalBlock, err := outputHandler.GetLatestBlock(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get the latest block: %w", err)
+		}
+		if latestLocalBlock != nil {
+			cfg.BlockStart = latestLocalBlock.ID + 1
+		}
+	}
+
+	if cfg.BlockStop == 0 {
+		latestRemoteBlock, err := utils.GetLatestBlockHeightWithRetry(ctx, grpcConn, resolver, cfg.MaxRetries)
+		if err != nil {
+			return fmt.Errorf("failed to get the latest block: %w", err)
+		}
+		cfg.BlockStop = latestRemoteBlock
+	}
+
+	if cfg.BlockStart > cfg.BlockStop {
+		return fmt.Errorf("start block is greater than stop block")
+	}
+
+	return nil
+}
+
+// shouldSkipMissingBlockCheck returns true if the missing block check should be skipped.
+func shouldSkipMissingBlockCheck(cfg config.ExtractConfig) bool {
+	return cfg.BlockStart != 0 && cfg.BlockStop != 0
+}
+
+// processMissingBlocks processes missing blocks by fetching them from the gRPC server.
+func processMissingBlocks(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, outputHandler output.OutputHandler, cfg config.ExtractConfig) error {
+	missingBlockIds, err := outputHandler.GetMissingBlockIds(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get missing block IDs: %w", err)
+	}
+
+	if len(missingBlockIds) > 0 {
+		slog.Warn("Missing blocks detected", "count", len(missingBlockIds), "blocks", missingBlockIds)
+		for _, blockID := range missingBlockIds {
+			if err := ProcessSingleBlockWithRetry(ctx, grpcConn, resolver, blockID, outputHandler, cfg.MaxRetries); err != nil {
+				return fmt.Errorf("failed to process missing block %d: %w", blockID, err)
+			}
+		}
+	}
 	return nil
 }

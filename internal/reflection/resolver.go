@@ -15,6 +15,8 @@ import (
 )
 
 // CustomResolver implements the Resolver interface required by protojson.
+// It fetches file descriptors from a gRPC server using the reflection API and registers them in a protoregistry.Files.
+// It also correctly resolves message types by fetching dependencies recursively.
 type CustomResolver struct {
 	files       *protoregistry.Files
 	grpcConn    *grpc.ClientConn

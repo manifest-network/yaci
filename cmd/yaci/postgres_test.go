@@ -3,7 +3,9 @@ package yaci_test
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/gruntwork-io/terratest/modules/docker"
@@ -38,6 +40,7 @@ func TestPostgres(t *testing.T) {
 
 	testExtractBlocksAndTxs(t)
 	testResume(t)
+	testMissingBlocks(t)
 
 	t.Cleanup(func() {
 		// Stop the infrastructure using Docker Compose.
@@ -49,27 +52,13 @@ func TestPostgres(t *testing.T) {
 func testExtractBlocksAndTxs(t *testing.T) {
 	t.Run("TestExtractBlocksAndTxs", func(t *testing.T) {
 		// Execute the command. This will extract the chain data to a PostgreSQL database up to the latest block.
-		out, err := testutil.Execute(t, yaci.RootCmd, "extract", "postgres", GRPCEndpoint, "-p", PsqlConnectionString, "-k")
+		out, err := executeExtractCommand(t)
 		require.NoError(t, err)
 		require.Contains(t, out, "Starting extraction")
 		require.Contains(t, out, "Closing PostgreSQL connection pool")
 
-		// Verify that the chain data has been extracted to the PostgreSQL database using the REST API
-		client := resty.New()
-		resp, err := client.
-			R().
-			SetHeader("Accept", "application/json").
-			Get(RestTxEndpoint)
-		require.NoError(t, err)
-		require.Equal(t, 200, resp.StatusCode())
-		require.NotEmpty(t, resp.Body())
-
-		// Parse the response JSON body
-		var transactions []map[string]interface{}
-		err = json.Unmarshal(resp.Body(), &transactions)
-		require.NoError(t, err)
+		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-
 		// The number of transactions is 6 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
 		require.Len(t, transactions, 6)
 	})
@@ -80,7 +69,7 @@ func testResume(t *testing.T) {
 		beforeBlockId := getLastBlockId(t)
 
 		// Execute the command. This will resume the extraction from the last block that was extracted.
-		out, err := testutil.Execute(t, yaci.RootCmd, "extract", "postgres", GRPCEndpoint, "-p", PsqlConnectionString, "-k")
+		out, err := executeExtractCommand(t)
 		require.NoError(t, err)
 		require.Contains(t, out, "Starting extraction")
 		require.Contains(t, out, "Closing PostgreSQL connection pool")
@@ -90,30 +79,100 @@ func testResume(t *testing.T) {
 	})
 }
 
+func testMissingBlocks(t *testing.T) {
+	t.Run("TestMissingBlocks", func(t *testing.T) {
+		beforeBlockId := getLastBlockId(t)
+		missingBlockId := beforeBlockId + 1
+		blockAfterNext := beforeBlockId + 2
+
+		// Extract the block after the next block, creating a gap in the database
+		out, err := executeExtractCommand(t, "-s", strconv.Itoa(blockAfterNext), "-e", strconv.Itoa(blockAfterNext))
+		require.NoError(t, err)
+		require.Contains(t, out, "Starting extraction")
+		require.Contains(t, out, "Closing PostgreSQL connection pool")
+
+		afterBlockId := getLastBlockId(t)
+		require.Equal(t, blockAfterNext, afterBlockId)
+
+		// Make sure there is a gap in the database
+		_, ok := maybeGetBlockId(t, missingBlockId)
+		require.False(t, ok)
+
+		// Create some blocks
+		time.Sleep(10 * time.Second)
+
+		// Execute the command. This will extract the missing block to the PostgreSQL database.
+		out, err = executeExtractCommand(t, "-s", "0", "-e", "0")
+		require.NoError(t, err)
+		require.Contains(t, out, "Starting extraction")
+		require.Contains(t, out, "Missing blocks detected")
+		require.Contains(t, out, "Closing PostgreSQL connection pool")
+
+		// Verify that the missing block has been extracted to the PostgreSQL database using the REST API
+		missingBlock, ok := maybeGetBlockId(t, missingBlockId)
+		require.True(t, ok)
+		require.Equal(t, missingBlockId, missingBlock)
+	})
+}
+func getBlockIdFromMap(t *testing.T, block map[string]interface{}) int {
+	t.Helper()
+	blockId, ok := block["id"].(float64)
+	require.True(t, ok)
+	return int(blockId)
+}
+
+func maybeGetBlockId(t *testing.T, blockHeight int) (int, bool) {
+	t.Helper()
+
+	queryParams := map[string]string{
+		"id": fmt.Sprintf("eq.%d", blockHeight),
+	}
+	blocks := getJSONResponse(t, RestBlockEndpoint, queryParams)
+
+	if len(blocks) == 0 {
+		return 0, false
+	}
+
+	require.Len(t, blocks, 1)
+	blockId := getBlockIdFromMap(t, blocks[0])
+	return blockId, true
+}
+
 func getLastBlockId(t *testing.T) int {
 	t.Helper()
 
-	client := resty.New()
-	resp, err := client.
-		R().
-		SetHeader("Accept", "application/json").
-		SetQueryParam("order", "id.desc").
-		SetQueryParam("limit", "1").
-		Get(RestBlockEndpoint)
-	require.NoError(t, err)
-	require.Equal(t, 200, resp.StatusCode())
-
-	var blocks []map[string]interface{}
-	err = json.Unmarshal(resp.Body(), &blocks)
-	require.NoError(t, err)
+	queryParams := map[string]string{
+		"order": "id.desc",
+		"limit": "1",
+	}
+	blocks := getJSONResponse(t, RestBlockEndpoint, queryParams)
 	require.NotEmpty(t, blocks)
 	require.Len(t, blocks, 1)
 
-	lastBlockId := blocks[0]["id"]
-	require.NotNil(t, lastBlockId)
+	return getBlockIdFromMap(t, blocks[0])
+}
 
-	lastBlockIdFloat, ok := lastBlockId.(float64)
-	require.True(t, ok)
+func executeExtractCommand(t *testing.T, args ...string) (string, error) {
+	t.Helper()
+	baseArgs := []string{"extract", "postgres", GRPCEndpoint, "-p", PsqlConnectionString, "-k"}
+	return testutil.Execute(t, yaci.RootCmd, append(baseArgs, args...)...)
+}
 
-	return int(lastBlockIdFloat)
+func getJSONResponse(t *testing.T, endpoint string, queryParams map[string]string) []map[string]interface{} {
+	t.Helper()
+
+	client := resty.New()
+	req := client.R().SetHeader("Accept", "application/json")
+	if queryParams != nil {
+		req.SetQueryParams(queryParams)
+	}
+	resp, err := req.Get(endpoint)
+	require.NoError(t, err)
+	require.Equal(t, 200, resp.StatusCode())
+
+	var data []map[string]interface{}
+	err = json.Unmarshal(resp.Body(), &data)
+	require.NoError(t, err)
+
+	return data
 }
