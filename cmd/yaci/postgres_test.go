@@ -41,6 +41,7 @@ func TestPostgres(t *testing.T) {
 	testExtractBlocksAndTxs(t)
 	testResume(t)
 	testMissingBlocks(t)
+	testReindex(t)
 
 	t.Cleanup(func() {
 		// Stop the infrastructure using Docker Compose.
@@ -114,6 +115,19 @@ func testMissingBlocks(t *testing.T) {
 		require.Equal(t, missingBlockId, missingBlock)
 	})
 }
+
+func testReindex(t *testing.T) {
+	t.Run("TestReindex", func(t *testing.T) {
+		// Execute the command. This will reindex the database from block 1 to the latest block.
+		out, err := executeExtractCommand(t, "--reindex")
+		require.NoError(t, err)
+		require.Contains(t, out, "Starting extraction")
+		require.Contains(t, out, "Reindexing entire database...")
+		require.Contains(t, out, "\"start\":1")
+		require.Contains(t, out, "Closing PostgreSQL connection pool")
+	})
+}
+
 func getBlockIdFromMap(t *testing.T, block map[string]interface{}) int {
 	t.Helper()
 	blockId, ok := block["id"].(float64)

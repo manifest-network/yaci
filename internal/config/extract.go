@@ -14,6 +14,7 @@ type ExtractConfig struct {
 	BlockStop      uint64
 	LiveMonitoring bool
 	Insecure       bool
+	ReIndex        bool
 }
 
 func (c ExtractConfig) Validate() error {
@@ -32,5 +33,6 @@ func LoadExtractConfigFromCLI() ExtractConfig {
 		BlockStop:      viper.GetUint64("stop"),
 		LiveMonitoring: viper.GetBool("live"),
 		Insecure:       viper.GetBool("insecure"),
+		ReIndex:        viper.GetBool("reindex"),
 	}
 }
