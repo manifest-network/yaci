@@ -143,7 +143,7 @@ func processMissingBlocks(ctx context.Context, grpcConn *grpc.ClientConn, resolv
 	}
 
 	if len(missingBlockIds) > 0 {
-		slog.Warn("Missing blocks detected", "count", len(missingBlockIds), "blocks", missingBlockIds)
+		slog.Warn("Missing blocks detected", "count", len(missingBlockIds))
 		for _, blockID := range missingBlockIds {
 			if err := ProcessSingleBlockWithRetry(ctx, grpcConn, resolver, blockID, outputHandler, cfg.MaxRetries); err != nil {
 				return fmt.Errorf("failed to process missing block %d: %w", blockID, err)
