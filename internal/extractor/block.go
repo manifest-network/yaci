@@ -168,7 +168,7 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 	}
 
 	// Get txs from block, if any
-	transactions, err := extractTransactions(ctx, grpcConn, data, txMethodDescriptor, txFullMethodName, blockHeight, outputHandler, uo, mo)
+	transactions, err := extractTransactions(ctx, grpcConn, data, txMethodDescriptor, txFullMethodName, uo, mo)
 	if err != nil {
 		return fmt.Errorf("failed to extract transactions from block: %w", err)
 	}
