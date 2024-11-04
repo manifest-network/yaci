@@ -26,6 +26,23 @@ func BuildFileDescriptorSet(descriptors []*descriptorpb.FileDescriptorProto) (*p
 
 	// Register the sorted descriptors
 	for _, fdProto := range sortedDescriptors {
+		// The Protocol Buffer specification mentions that the `string` type MUST always contain UTF-8 encoded or 7-bit ASCII text.
+		// The `raw_log` field of `TxResponse` in `cosmos/base/abci/v1beta1/abci.proto` is of type `string` but can contain invalid UTF-8.
+		//
+		// We change the field type to `bytes` to avoid issues when unmarshalling the response.
+		// See https://github.com/cosmos/cosmos-sdk/issues/22414
+		//
+		// Marshaling the response to JSON will still work as expected since the field is serialized as a base64-encoded string.
+		if fdProto.GetName() == "cosmos/base/abci/v1beta1/abci.proto" {
+			for _, msgType := range fdProto.GetMessageType() {
+				for _, field := range msgType.GetField() {
+					if field.GetName() == "raw_log" && field.GetType() == *descriptorpb.FieldDescriptorProto_TYPE_STRING.Enum() {
+						field.Type = descriptorpb.FieldDescriptorProto_TYPE_BYTES.Enum()
+					}
+				}
+			}
+		}
+
 		fd, err := protodesc.NewFile(fdProto, files)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create file descriptor: %w", err)
