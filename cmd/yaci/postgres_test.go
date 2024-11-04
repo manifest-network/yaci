@@ -118,6 +118,27 @@ func testMissingBlocks(t *testing.T) {
 
 func testReindex(t *testing.T) {
 	t.Run("TestReindex", func(t *testing.T) {
+		// Get the data field of block 3 using the REST API
+		queryParams := map[string]string{
+			"id": fmt.Sprintf("eq.%d", 3),
+		}
+		block3 := getJSONResponse(t, RestBlockEndpoint, queryParams)
+
+		// Update the data field of block 3 to an empty JSON object
+		_, err := docker.RunE(t, "postgres", &docker.RunOptions{
+			Command:              []string{"psql", "-h", "localhost", "-U", "postgres", "-c", "UPDATE api.blocks SET data = '{}' WHERE id = 3"},
+			EnvironmentVariables: []string{"PGPASSWORD=foobar"},
+			Detach:               false,
+			Remove:               true,
+			OtherOptions:         []string{"--network", "host"},
+		})
+		require.NoError(t, err)
+
+		// Verify that the data field of block 3 is empty using the REST API
+		emptyBlock3 := getJSONResponse(t, RestBlockEndpoint, queryParams)
+		require.NotEmpty(t, emptyBlock3)
+		require.Empty(t, emptyBlock3[0]["data"])
+
 		// Execute the command. This will reindex the database from block 1 to the latest block.
 		out, err := executeExtractCommand(t, "--reindex")
 		require.NoError(t, err)
@@ -125,6 +146,13 @@ func testReindex(t *testing.T) {
 		require.Contains(t, out, "Reindexing entire database...")
 		require.Contains(t, out, "\"start\":1")
 		require.Contains(t, out, "Closing PostgreSQL connection pool")
+
+		// Verify that the data field of block 3 is not empty using the REST API
+		// The data field of block 3 should be the same as before setting the empty JSON object
+		newBlock3 := getJSONResponse(t, RestBlockEndpoint, queryParams)
+		require.NotEmpty(t, newBlock3)
+		require.NotEmpty(t, newBlock3[0]["data"])
+		require.Equal(t, block3, newBlock3)
 	})
 }
 
