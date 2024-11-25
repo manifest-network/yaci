@@ -7,6 +7,7 @@ GO_MOD_CACHE_KEY: &go_mod_cache_key 'go-mod-1'
 orbs:
   go: circleci/go@1.11.0
   codecov: codecov/codecov@4.1.0
+  docker: circleci/docker@2.8.1
 
 jobs:
   build:
@@ -36,6 +37,23 @@ jobs:
             mv dist/yaci_*.tar.gz dist/yaci_*.txt /tmp/artifacts
       - store_artifacts:
           path: /tmp/artifacts
+  docker:
+    executor: docker/docker
+    steps:
+      - setup_remote_docker
+      - checkout
+      - docker/check
+      - docker/build:
+          image: lifted/yaci
+          tag: "latest, ${CIRCLE_SHA1}"
+      - docker/push:
+          digest-path: /tmp/digest.txt
+          image: lifted/yaci
+          tag: "latest, ${CIRCLE_SHA1}"
+      - run:
+        command: |
+          echo "Digest is: $(</tmp/digest.txt)"
+
   security:
     executor:
       name: go/default
@@ -64,6 +82,15 @@ workflows:
     jobs:
       - build
       - security
+  docker:
+    jobs:
+      - docker:
+        context:
+          - DOCKER_CREDS
+        filter:
+          branches:
+            only:
+              - main
   release:
     jobs:
       - release:
