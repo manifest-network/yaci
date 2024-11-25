@@ -51,8 +51,8 @@ jobs:
           image: lifted/yaci
           tag: "latest, ${CIRCLE_SHA1}"
       - run:
-        command: |
-          echo "Digest is: $(</tmp/digest.txt)"
+          command: |
+            echo "Digest is: $(</tmp/digest.txt)"
 
   security:
     executor:
@@ -85,12 +85,12 @@ workflows:
   docker:
     jobs:
       - docker:
-        context:
-          - DOCKER_CREDS
-        filter:
-          branches:
-            only:
-              - main
+          context:
+            - DOCKER_CREDS
+          filters:
+            branches:
+              only:
+                - main
   release:
     jobs:
       - release:
