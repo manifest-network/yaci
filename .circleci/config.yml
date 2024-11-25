@@ -45,11 +45,11 @@ jobs:
       - docker/check
       - docker/build:
           image: lifted/yaci
-          tag: "latest, ${CIRCLE_SHA1}"
+          tag: "latest,${CIRCLE_SHA1}"
       - docker/push:
           digest-path: /tmp/digest.txt
           image: lifted/yaci
-          tag: "latest, ${CIRCLE_SHA1}"
+          tag: "latest,${CIRCLE_SHA1}"
       - run:
           command: |
             echo "Digest is: $(</tmp/digest.txt)"
