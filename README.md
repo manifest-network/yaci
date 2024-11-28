@@ -77,7 +77,7 @@ Extract blockchain data and output it to a PostgreSQL database.
 The PostgreSQL database has the following schema:
 
 ```mermaid
-erDiagram:
+erDiagram
   api.blocks {
     serial id PK
     jsonb data
