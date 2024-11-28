@@ -78,11 +78,11 @@ The PostgreSQL database has the following schema:
 
 ```mermaid
 erDiagram
-  api.blocks {
+  "api.blocks" {
     serial id PK
     jsonb data
   }
-  api.transactions {
+  "api.transactions" {
     varchar(64) id PK
     jsonb data
   }
