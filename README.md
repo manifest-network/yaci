@@ -6,8 +6,6 @@
 
 `yaci` is a command-line tool that connects to a gRPC server and extracts blockchain data.
 
-Tested with Cosmos SDK v0.50.x.
-
 ## Use-case
 
 Off-chain indexing of block & transaction data.
@@ -16,6 +14,7 @@ Off-chain indexing of block & transaction data.
 
 - Go 1.23.1
 - Docker & Docker Compose (optional)
+- CosmosSDK >= 0.50 (chain to index)
 
 ## Features
 
@@ -75,6 +74,20 @@ The following flags are available for all `extract` subcommand:
 
 Extract blockchain data and output it to a PostgreSQL database.
 
+The PostgreSQL database has the following schema:
+
+```mermaid
+erDiagram:
+  api.blocks {
+    serial id PK
+    jsonb data
+  }
+  api.transactions {
+    varchar(64) id PK
+    jsonb data
+  }
+```
+
 #### Usage
 
 ```
@@ -93,6 +106,12 @@ yaci extract postgres localhost:9090 -p postgres://postgres:foobar@localhost/pos
 ```
 
 This command will connect to the gRPC server running on `localhost:9090`, continuously extract data from block height `106000` and store the extracted data in the `postgres` database. New blocks and transactions will be inserted into the database every 5 seconds.
+
+#### PostgreSQL Functions
+
+The following PostgreSQL functions are available:
+
+- `get_address_filtered_transactions_and_successful_proposals(address)`: Returns filtered transactions and successful proposals for a given address.
 
 ## Configuration
 
