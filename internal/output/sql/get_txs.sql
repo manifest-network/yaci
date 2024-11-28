@@ -1,4 +1,4 @@
-CREATE OR REPLACE FUNCTION api.get_transactions(address TEXT)
+CREATE OR REPLACE FUNCTION api.get_address_filtered_transactions_and_successful_proposals(address TEXT)
 RETURNS TABLE (id VARCHAR(64), data JSONB)
 AS $$
 WITH base_messages AS (
