@@ -15,6 +15,9 @@ import (
 //go:embed sql/init.sql
 var initSQL string
 
+//go:embed sql/get_txs.sql
+var getTxsSQL string
+
 type PostgresOutputHandler struct {
 	pool *pgxpool.Pool
 }
@@ -32,6 +35,11 @@ func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error)
 	// Initialize tables. This is idempotent.
 	if err := handler.initTables(); err != nil {
 		return nil, fmt.Errorf("failed to initialize tables: %w", err)
+	}
+
+	// Initialize functions. This is idempotent.
+	if err := handler.initFunctions(); err != nil {
+		return nil, fmt.Errorf("failed to initialize functions: %w", err)
 	}
 
 	return handler, nil
@@ -121,6 +129,14 @@ func (h *PostgresOutputHandler) initTables() error {
 	slog.Info("Initializing PostgreSQL tables")
 	ctx := context.Background()
 	_, err := h.pool.Exec(ctx, initSQL)
+	return err
+}
+
+func (h *PostgresOutputHandler) initFunctions() error {
+	// Create functions if they don't exist
+	slog.Info("Initializing PostgreSQL functions")
+	ctx := context.Background()
+	_, err := h.pool.Exec(ctx, getTxsSQL)
 	return err
 }
 
