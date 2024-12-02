@@ -46,7 +46,11 @@ submit_proposals AS (
     ) AS proposal_attr ON TRUE
   WHERE
     msg.value ->> '@type' = '/cosmos.group.v1.MsgSubmitProposal'
-    AND msg.value::text ILIKE '%' || address || '%'
+    AND EXISTS (
+      SELECT 1
+      FROM jsonb_array_elements(msg.value -> 'messages') AS nested_msg(value)
+      WHERE nested_msg.value::text ILIKE '%' || address || '%'
+    )
     AND EXISTS (
       SELECT 1
       FROM jsonb_array_elements(msg.value -> 'messages') AS nested_msg(value)
