@@ -10,6 +10,7 @@ WITH base_messages AS (
     api.transactions t,
     LATERAL jsonb_array_elements(t.data -> 'tx' -> 'body' -> 'messages') AS msg(value)
   WHERE
+    -- Exclude messages that are MsgSubmitProposal
     msg.value ->> '@type' != '/cosmos.group.v1.MsgSubmitProposal'
 ),
 filtered_messages AS (
@@ -19,11 +20,13 @@ filtered_messages AS (
   FROM
     base_messages
   WHERE
+    -- Include only desired message types
     message ->> '@type' IN (
       '/cosmos.bank.v1beta1.MsgSend',
       '/osmosis.tokenfactory.v1beta1.MsgMint',
       '/osmosis.tokenfactory.v1beta1.MsgBurn'
     )
+    -- Check if the message contains the given address anywhere in its content
     AND message::text ILIKE '%' || address || '%'
 ),
 submit_proposals AS (
