@@ -23,7 +23,7 @@ services:
       retries: 5
 
   manifest-ledger:
-    image: ghcr.io/liftedinit/manifest-ledger:v0.0.1-alpha.18
+    image: ghcr.io/liftedinit/manifest-ledger:v0.0.1-rc.3
     volumes:
         - manifest-ledger-bin:/usr/bin
         - manifest-ledger-data:/persistent
@@ -76,7 +76,7 @@ services:
   # Setup some transactions on the blockchain
   manifest-ledger-tx:
     restart: no
-    image: ghcr.io/liftedinit/manifest-ledger:v0.0.1-alpha.18
+    image: ghcr.io/liftedinit/manifest-ledger:v0.0.1-rc.3
     volumes:
       - manifest-ledger-bin:/usr/bin
       - manifest-ledger-data:/persistent
