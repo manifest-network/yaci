@@ -90,17 +90,19 @@ matching_proposals AS (
     submit_proposals sp
     JOIN execs e ON sp.proposal_id = e.proposal_id
 )
-SELECT DISTINCT
-  id,
-  data
+SELECT DISTINCT id, data
 FROM
-  filtered_messages
-
-UNION
-
-SELECT DISTINCT
-  id,
-  data
-FROM
-  matching_proposals;
+(
+  SELECT
+    id,
+    data
+  FROM filtered_messages
+  WHERE COALESCE((data->'txResponse'->>'code')::int, 0) = 0
+  UNION
+  SELECT
+    id,
+    data
+  FROM matching_proposals
+  WHERE COALESCE((data->'txResponse'->>'code')::int, 0) = 0
+) combined;
 $$ LANGUAGE SQL STABLE;
