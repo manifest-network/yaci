@@ -95,7 +95,7 @@ matching_proposals AS (
   FROM submit_proposals sp
   JOIN execs e
     ON sp.proposal_id = e.proposal_id
-  -- optionally: AND e.result = 'PROPOSAL_EXECUTE_SUCCESS'
+  WHERE e.result = '"PROPOSAL_EXECUTOR_RESULT_SUCCESS"'
 )
 
 -- 7) Final SELECT:
