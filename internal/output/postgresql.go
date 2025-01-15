@@ -15,8 +15,23 @@ import (
 //go:embed sql/init.sql
 var initSQL string
 
-//go:embed sql/get_txs.sql
-var getTxsSQL string
+//go:embed sql/txs_initiated_by.sql
+var txsInitiatedBySQL string
+
+//go:embed sql/txs_containing.sql
+var txsContainingSQL string
+
+//go:embed sql/executed_proposals_containing.sql
+var executedProposalsContainingSQL string
+
+//go:embed sql/txs_transfer_containing.sql
+var txsTransferContainingSQL string
+
+//go:embed sql/parse_tx.sql
+var parseTxSQL string
+
+//go:embed sql/user_txs.sql
+var userTxsSQL string
 
 type PostgresOutputHandler struct {
 	pool *pgxpool.Pool
@@ -136,8 +151,37 @@ func (h *PostgresOutputHandler) initFunctions() error {
 	// Create functions if they don't exist
 	slog.Info("Initializing PostgreSQL functions")
 	ctx := context.Background()
-	_, err := h.pool.Exec(ctx, getTxsSQL)
-	return err
+	_, err := h.pool.Exec(ctx, txsInitiatedBySQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'txs_initiated_by.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, txsContainingSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'txs_containing.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, executedProposalsContainingSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'executed_proposals_containing.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, txsTransferContainingSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'txs_transfer_containing.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, parseTxSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'parse_tx.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, userTxsSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'user_txs.sql': %w", err)
+	}
+
+	return nil
 }
 
 func (h *PostgresOutputHandler) Close() error {
