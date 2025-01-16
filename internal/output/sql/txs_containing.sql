@@ -14,7 +14,7 @@ FROM api.transactions t
 CROSS JOIN LATERAL jsonb_array_elements(t.data -> 'tx' -> 'body' -> 'messages') AS msg(value)
 WHERE jsonb_path_exists(
     msg.value,
-    '$.** ? (@.type() == "string" && @ == $addr)',
+    '$.** ? (@.type() == "string" && @ == $addr || @.type() == "array" && @[*] == $addr)',
     jsonb_build_object('addr', address)
 );
 $$;

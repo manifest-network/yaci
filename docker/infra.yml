@@ -49,7 +49,7 @@ services:
                update_test_genesis '.app_state[\"group\"][\"groups\"]=[{\"id\":\"1\",\"admin\":\"${POA_ADMIN_ADDRESS}\",\"metadata\":\"AQ==\",\"version\":\"2\",\"total_weight\":\"2\",\"created_at\":\"2024-05-16T15:10:54.372190727Z\"}]' &&
                update_test_genesis '.app_state[\"group\"][\"group_members\"]=[{\"group_id\":\"1\",\"member\":{\"address\":\"${ADDR1}\",\"weight\":\"1\",\"metadata\":\"user1\",\"added_at\":\"2024-05-16T15:10:54.372190727Z\"}},{\"group_id\":\"1\",\"member\":{\"address\":\"${ADDR2}\",\"weight\":\"1\",\"metadata\":\"user2\",\"added_at\":\"2024-05-16T15:10:54.372190727Z\"}}]' &&
                update_test_genesis '.app_state[\"group\"][\"group_policy_seq\"]=\"1\"' &&
-               update_test_genesis '.app_state[\"group\"][\"group_policies\"]=[{\"address\":\"${POA_ADMIN_ADDRESS}\",\"group_id\":\"1\",\"admin\":\"${POA_ADMIN_ADDRESS}\",\"metadata\":\"AQ==\",\"version\":\"2\",\"decision_policy\":{\"@type\":\"/cosmos.group.v1.ThresholdDecisionPolicy\",\"threshold\":\"1\",\"windows\":{\"voting_period\":\"30s\",\"min_execution_period\":\"0s\"}},\"created_at\":\"2024-05-16T15:10:54.372190727Z\"}]' &&
+               update_test_genesis '.app_state[\"group\"][\"group_policies\"]=[{\"address\":\"${POA_ADMIN_ADDRESS}\",\"group_id\":\"1\",\"admin\":\"${POA_ADMIN_ADDRESS}\",\"metadata\":\"AQ==\",\"version\":\"2\",\"decision_policy\":{\"@type\":\"/cosmos.group.v1.ThresholdDecisionPolicy\",\"threshold\":\"1\",\"windows\":{\"voting_period\":\"10s\",\"min_execution_period\":\"0s\"}},\"created_at\":\"2024-05-16T15:10:54.372190727Z\"}]' &&
                $BINARY genesis add-genesis-account $KEY 100000000000000000${BOND_DENOM},100000000000000000000000000000${DENOM} --keyring-backend $KEYRING --home=$HOME_DIR &&
                $BINARY genesis add-genesis-account $KEY2 100000000000000000${DENOM} --keyring-backend $KEYRING --home=$HOME_DIR &&
                $BINARY genesis gentx $KEY 1000000${BOND_DENOM} --keyring-backend $KEYRING --home=$HOME_DIR --chain-id $CHAIN_ID --commission-rate=0.0 --commission-max-rate=1.0 --commission-max-change-rate=0.1 &&
@@ -80,17 +80,35 @@ services:
     volumes:
       - manifest-ledger-bin:/usr/bin
       - manifest-ledger-data:/persistent
+      - ./init_manifest_ledger_txs.sh:/usr/local/bin/init_manifest_ledger_txs.sh
     entrypoint: ["/bin/bash", "-c"]
+    environment:
+      - ADDR1=${ADDR1}
+      - POA_ADMIN_ADDRESS=${POA_ADMIN_ADDRESS}
+      - DENOM=${DENOM}
+      - COMMON_MANIFESTD_ARGS=${COMMON_MANIFESTD_ARGS}
+      - TIMEOUT_COMMIT=${TIMEOUT_COMMIT}
+      - KEY=${KEY}
+      - PAYOUT_PROPOSAL=${PAYOUT_PROPOSAL}
+      - GROUP_MEMBERS=${GROUP_MEMBERS}
+      - DECISION_POLICY=${DECISION_POLICY}
     # The last sleep is to give the transactions time to be committed. Do not remove it.
-    command: ["manifestd tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} && sleep ${TIMEOUT_COMMIT} &&
-               manifestd tx tokenfactory create-denom ufoobar ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
-               manifestd tx tokenfactory modify-metadata factory/$ADDR1/ufoobar FOOBAR \"This is the foobar token\" 6 ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
-               echo '${PAYOUT_PROPOSAL}' > proposal.json && cat proposal.json &&
-               manifestd tx group submit-proposal proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY && sleep ${TIMEOUT_COMMIT} &&
-               manifestd tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} --sign-mode amino-json && sleep ${TIMEOUT_COMMIT} &&
-               cat proposal.json | jq '.title=\"Payout proposal with AMINO\"' > other_proposal.json &&
-               manifestd tx group submit-proposal other_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --sign-mode amino-json && sleep ${TIMEOUT_COMMIT}
-               "]
+    # The following will results in the following transactions:
+    #  - 2x Send
+    #  - 1x CreateDenom
+    #  - 1x SetDenomMetadata
+    #  - 2x SubmitProposal
+    #  - 2x Vote
+    #  - 2x ExecuteProposal
+    #  - 2x Payout (from the executed proposals)
+    #  - 1x Create Group (with policy as admin)
+    #
+    # For a total of 12 transactions,
+    # TODO: Fix numbers below
+    #  - 11 transactions under ADDR1
+    #  - 3 transactions under ADDR2
+    #  - 6 transactions under POA_ADMIN_ADDRESS
+    command: ["/usr/local/bin/init_manifest_ledger_txs.sh"]
     depends_on:
       manifest-ledger:
         condition: service_healthy

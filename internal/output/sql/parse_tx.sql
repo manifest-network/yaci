@@ -18,6 +18,8 @@ SELECT
     WHEN (msg->>'@type') = '/cosmos.group.v1.MsgSubmitProposal'
     THEN
       jsonb_build_object(
+        'title',               msg->>'title',
+        'summary',             msg->>'summary',
         'proposal_id', (
           SELECT trim(both '"' from attr->>'value')
           FROM jsonb_array_elements(data->'txResponse'->'events') AS e
@@ -25,8 +27,17 @@ SELECT
           WHERE e->>'type' = 'cosmos.group.v1.EventSubmitProposal'
             AND attr->>'key' = 'proposal_id'
           LIMIT 1
+        ),
+        'group_policy_address', msg->>'groupPolicyAddress'
+      )
+
+    WHEN (msg->>'@type') = '/cosmos.group.v1.MsgCreateGroupWithPolicy'
+    THEN
+      jsonb_build_object(
+      'members', (
+          SELECT jsonb_agg(member->'address')
+          FROM jsonb_array_elements(msg->'members') AS member
         )
-        -- more fields if you want ...
       )
 
     -- 3) Otherwise, just return the entire message
