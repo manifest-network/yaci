@@ -46,7 +46,7 @@ expanded AS (
   ) AS msg(value)
 ),
 
--- Expand all nested messages in the transactions
+-- Expand all nested messages in the proposal
 nested_expanded AS (
   SELECT
     c.id        AS tx_hash,

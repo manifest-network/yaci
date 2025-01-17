@@ -5,7 +5,6 @@ LANGUAGE SQL STABLE
 AS $$
 SELECT
   CASE
-    -- 1) If it's a /cosmos.bank.v1beta1.MsgSend
     WHEN (msg->>'@type') = '/cosmos.bank.v1beta1.MsgSend'
     THEN
       jsonb_build_object(
@@ -14,7 +13,6 @@ SELECT
         'amount', msg->'amount'
       )
 
-    -- 2) If it's a /cosmos.group.v1.MsgSubmitProposal
     WHEN (msg->>'@type') = '/cosmos.group.v1.MsgSubmitProposal'
     THEN
       jsonb_build_object(
@@ -37,10 +35,17 @@ SELECT
       'members', (
           SELECT jsonb_agg(member->'address')
           FROM jsonb_array_elements(msg->'members') AS member
+        ),
+      'group_policy_address', (
+        SELECT trim(both '"' from attr->>'value')
+        FROM jsonb_array_elements(data->'txResponse'->'events') AS e
+        CROSS JOIN LATERAL jsonb_array_elements(e->'attributes') AS attr
+        WHERE e->>'type' = 'cosmos.group.v1.EventCreateGroupPolicy'
+          AND attr->>'key' = 'address'
+        LIMIT 1
         )
       )
 
-    -- 3) Otherwise, just return the entire message
     ELSE
       msg
   END
