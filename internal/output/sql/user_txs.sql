@@ -97,6 +97,7 @@ json_row AS (
       ),
       'error', all_msgs.tx_data->'txResponse'->>'rawLog',
       'fee', all_msgs.tx_data->'tx'->'authInfo'->'fee',
+      'memo', all_msgs.tx_data->'tx'->'body'->>'memo',
       'tx_type', all_msgs.message->>'@type',
       'timestamp', all_msgs.tx_data->'txResponse'->>'timestamp',
       'tx_hash', all_msgs.tx_hash,

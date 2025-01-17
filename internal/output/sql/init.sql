@@ -24,3 +24,5 @@ $$;
 GRANT USAGE ON SCHEMA api TO web_anon;
 GRANT SELECT ON api.blocks TO web_anon;
 GRANT SELECT ON api.transactions TO web_anon;
+
+DROP FUNCTION IF EXISTS api.get_address_filtered_transactions_and_successful_proposals;

@@ -15,8 +15,8 @@ import (
 //go:embed sql/init.sql
 var initSQL string
 
-//go:embed sql/txs_initiated_by.sql
-var txsInitiatedBySQL string
+//go:embed sql/init_permissions.sql
+var initPermissionsSQL string
 
 //go:embed sql/txs_containing.sql
 var txsContainingSQL string
@@ -24,14 +24,23 @@ var txsContainingSQL string
 //go:embed sql/executed_proposals_containing.sql
 var executedProposalsContainingSQL string
 
-//go:embed sql/txs_transfer_containing.sql
-var txsTransferContainingSQL string
-
 //go:embed sql/parse_tx.sql
 var parseTxSQL string
 
 //go:embed sql/user_txs.sql
 var userTxsSQL string
+
+//go:embed sql/parse_manifest_txs.sql
+var parseManifestTxsSQL string
+
+//go:embed sql/parse_bank_txs.sql
+var parseBankTxsSQL string
+
+//go:embed sql/parse_group_txs.sql
+var parseGroupTxsSQL string
+
+//go:embed sql/parse_tokenfactory_txs.sql
+var parseTokenFactoryTxsSQL string
 
 type PostgresOutputHandler struct {
 	pool *pgxpool.Pool
@@ -55,6 +64,10 @@ func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error)
 	// Initialize functions. This is idempotent.
 	if err := handler.initFunctions(); err != nil {
 		return nil, fmt.Errorf("failed to initialize functions: %w", err)
+	}
+
+	if err := handler.initPermissions(); err != nil {
+		return nil, fmt.Errorf("failed to initialize permissions: %w", err)
 	}
 
 	return handler, nil
@@ -151,12 +164,7 @@ func (h *PostgresOutputHandler) initFunctions() error {
 	// Create functions if they don't exist
 	slog.Info("Initializing PostgreSQL functions")
 	ctx := context.Background()
-	_, err := h.pool.Exec(ctx, txsInitiatedBySQL)
-	if err != nil {
-		return fmt.Errorf("error while executing 'txs_initiated_by.sql': %w", err)
-	}
-
-	_, err = h.pool.Exec(ctx, txsContainingSQL)
+	_, err := h.pool.Exec(ctx, txsContainingSQL)
 	if err != nil {
 		return fmt.Errorf("error while executing 'txs_containing.sql': %w", err)
 	}
@@ -166,9 +174,24 @@ func (h *PostgresOutputHandler) initFunctions() error {
 		return fmt.Errorf("error while executing 'executed_proposals_containing.sql': %w", err)
 	}
 
-	_, err = h.pool.Exec(ctx, txsTransferContainingSQL)
+	_, err = h.pool.Exec(ctx, parseBankTxsSQL)
 	if err != nil {
-		return fmt.Errorf("error while executing 'txs_transfer_containing.sql': %w", err)
+		return fmt.Errorf("error while executing 'parse_bank_txs.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, parseTokenFactoryTxsSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'parse_tokenfactory_txs.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, parseManifestTxsSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'parse_manifest_txs.sql': %w", err)
+	}
+
+	_, err = h.pool.Exec(ctx, parseGroupTxsSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'parse_group_txs.sql': %w", err)
 	}
 
 	_, err = h.pool.Exec(ctx, parseTxSQL)
@@ -182,6 +205,17 @@ func (h *PostgresOutputHandler) initFunctions() error {
 	}
 
 	return nil
+}
+
+func (h *PostgresOutputHandler) initPermissions() error {
+	// Grant permissions if they don't exist
+	slog.Info("Initializing PostgreSQL permissions")
+	ctx := context.Background()
+	_, err := h.pool.Exec(ctx, initPermissionsSQL)
+	if err != nil {
+		return fmt.Errorf("error while executing 'txs_containing.sql': %w", err)
+	}
+	return err
 }
 
 func (h *PostgresOutputHandler) Close() error {

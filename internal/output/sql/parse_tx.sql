@@ -5,49 +5,27 @@ LANGUAGE SQL STABLE
 AS $$
 SELECT
   CASE
-    WHEN (msg->>'@type') = '/cosmos.bank.v1beta1.MsgSend'
+    WHEN (msg->>'@type') LIKE  '/cosmos.bank%'
     THEN
-      jsonb_build_object(
-        'from',   msg->>'fromAddress',
-        'to',     msg->>'toAddress',
-        'amount', msg->'amount'
-      )
+      api.parse_bank_txs(msg, proposal_id)
 
-    WHEN (msg->>'@type') = '/cosmos.group.v1.MsgSubmitProposal'
+    WHEN (msg->>'@type') LIKE '/liftedinit.manifest%'
     THEN
-      jsonb_build_object(
-        'title',               msg->>'title',
-        'summary',             msg->>'summary',
-        'proposal_id', (
-          SELECT trim(both '"' from attr->>'value')
-          FROM jsonb_array_elements(data->'txResponse'->'events') AS e
-          CROSS JOIN LATERAL jsonb_array_elements(e->'attributes') AS attr
-          WHERE e->>'type' = 'cosmos.group.v1.EventSubmitProposal'
-            AND attr->>'key' = 'proposal_id'
-          LIMIT 1
-        ),
-        'group_policy_address', msg->>'groupPolicyAddress'
-      )
+      api.parse_manifest_txs(msg, proposal_id)
 
-    WHEN (msg->>'@type') = '/cosmos.group.v1.MsgCreateGroupWithPolicy'
+    WHEN (msg->>'@type') LIKE '/cosmos.group%'
     THEN
-      jsonb_build_object(
-      'members', (
-          SELECT jsonb_agg(member->'address')
-          FROM jsonb_array_elements(msg->'members') AS member
-        ),
-      'group_policy_address', (
-        SELECT trim(both '"' from attr->>'value')
-        FROM jsonb_array_elements(data->'txResponse'->'events') AS e
-        CROSS JOIN LATERAL jsonb_array_elements(e->'attributes') AS attr
-        WHERE e->>'type' = 'cosmos.group.v1.EventCreateGroupPolicy'
-          AND attr->>'key' = 'address'
-        LIMIT 1
-        )
-      )
+      api.parse_group_txs(msg, data, proposal_id)
+
+    WHEN (msg->>'@type') LIKE '/osmosis.tokenfactory%'
+    THEN
+      api.parse_tokenfactory_txs(msg, proposal_id)
 
     ELSE
-      msg
+      jsonb_build_object(
+        'type', msg->>'@type',
+        'error', 'unsupported message type'
+      )
   END
   ||
   CASE
