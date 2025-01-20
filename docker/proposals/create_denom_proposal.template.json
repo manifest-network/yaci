@@ -1,0 +1,16 @@
+{
+  "group_policy_address": "${USER_GROUP_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/osmosis.tokenfactory.v1beta1.MsgCreateDenom",
+      "sender": "${USER_GROUP_ADDRESS}",
+      "subdenom": "utool"
+    }
+  ],
+  "metadata": "",
+  "title": "Create a new denom",
+  "summary": "This proposal will create a new denom called utool",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}

@@ -38,12 +38,22 @@ expanded AS (
     c.data AS tx_data,
     msg.value AS message,
     FALSE AS is_nested,
-    NULL::TEXT AS proposal_id,
+    fields.proposal_id AS proposal_id,
     NULL::TEXT AS group_policy_address
   FROM combined c
   CROSS JOIN LATERAL jsonb_array_elements(
     c.data -> 'tx' -> 'body' -> 'messages'
   ) AS msg(value)
+  CROSS JOIN LATERAL (
+    SELECT
+      MAX(
+        CASE WHEN attr->>'key' = 'proposal_id'
+             THEN trim(both '"' from attr->>'value')
+        END
+      )::TEXT AS proposal_id
+    FROM jsonb_array_elements(c.data->'txResponse'->'events') e
+    CROSS JOIN LATERAL jsonb_array_elements(e->'attributes') AS attr
+  ) AS fields
 ),
 
 -- Expand all nested messages in the proposal
@@ -53,18 +63,21 @@ nested_expanded AS (
     c.data      AS tx_data,
     nested.value AS message,
     TRUE        AS is_nested,
-    (
-      SELECT trim(both '"' from attr->>'value')
-      FROM jsonb_array_elements(c.data->'txResponse'->'events') AS e
-      CROSS JOIN LATERAL jsonb_array_elements(e->'attributes') AS attr
-      WHERE e->>'type' = 'cosmos.group.v1.EventSubmitProposal'
-        AND attr->>'key' = 'proposal_id'
-      LIMIT 1
-    ) AS proposal_id,
+    fields.proposal_id AS proposal_id,
     top_msg.value->>'groupPolicyAddress' AS group_policy_address
   FROM executed_proposals c
   CROSS JOIN LATERAL jsonb_array_elements(c.data->'tx'->'body'->'messages') AS top_msg(value)
   CROSS JOIN LATERAL jsonb_array_elements(top_msg.value->'messages') AS nested(value)
+  CROSS JOIN LATERAL (
+    SELECT
+      MAX(
+        CASE WHEN attr->>'key' = 'proposal_id'
+             THEN trim(both '"' from attr->>'value')
+        END
+      )::TEXT AS proposal_id
+    FROM jsonb_array_elements(c.data->'txResponse'->'events') e
+    CROSS JOIN LATERAL jsonb_array_elements(e->'attributes') AS attr
+  ) AS fields
   WHERE top_msg.value->>'@type' = '/cosmos.group.v1.MsgSubmitProposal'
 ),
 
@@ -90,8 +103,19 @@ json_row AS (
         NULLIF(all_msgs.message->>'executor', ''),
         (
           -- If `proposers` exists, grab its first element
+          -- MsgSubmitProposal
           SELECT jsonb_array_elements_text(all_msgs.message->'proposers')
           LIMIT 1
+        ),
+        (
+          -- If 'inputs' exists, grab the address field of the first element
+          -- MsgMultiSend
+          CASE
+            WHEN jsonb_typeof(all_msgs.message->'inputs') = 'array'
+                 AND jsonb_array_length(all_msgs.message->'inputs') > 0
+            THEN all_msgs.message->'inputs'->0->>'address'
+            ELSE NULL
+          END
         ),
         group_policy_address
       ),
@@ -102,7 +126,8 @@ json_row AS (
       'timestamp', all_msgs.tx_data->'txResponse'->>'timestamp',
       'tx_hash', all_msgs.tx_hash,
       'height', (all_msgs.tx_data->'txResponse'->>'height')::BIGINT,
-      'metadata', api.parse_tx(all_msgs.message, all_msgs.tx_data, all_msgs.proposal_id)
+      'proposal_id', proposal_id,
+      'metadata', api.parse_tx(all_msgs.message)
     ) AS row_obj
   FROM all_msgs
 )

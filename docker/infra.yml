@@ -27,7 +27,7 @@ services:
     volumes:
         - manifest-ledger-bin:/usr/bin
         - manifest-ledger-data:/persistent
-        - ./init_manifest_ledger.sh:/usr/local/bin/init_manifest_ledger.sh
+        - ./scripts/init_manifest_ledger.sh:/usr/local/bin/init_manifest_ledger.sh:ro
     ports:
       - "9090:9090"
     entrypoint: ["/bin/bash", "-c"]
@@ -39,6 +39,18 @@ services:
       timeout: 5s
       retries: 5
 
+  manifest-generate-proposals:
+    restart: no
+    image: debian:buster-slim
+    volumes:
+      - ./proposals:/templates
+      - manifest-proposals-data:/proposals
+      - ./scripts/generate_proposals.sh:/usr/local/bin/generate_proposals.sh:ro
+    entrypoint: ["/bin/bash", "-c"]
+    env_file: .env
+    # Install gettext for envsubst
+    command: ["apt-get update && apt-get install -y gettext && /usr/local/bin/generate_proposals.sh"]
+
   # Setup some transactions on the blockchain
   manifest-ledger-tx:
     restart: no
@@ -47,7 +59,8 @@ services:
       - manifest-ledger-bin:/usr/bin
       - manifest-ledger-data:/persistent
       - tx-count:/tx-count
-      - ./init_manifest_ledger_txs.sh:/usr/local/bin/init_manifest_ledger_txs.sh
+      - manifest-proposals-data:/proposals
+      - ./scripts/init_manifest_ledger_txs.sh:/usr/local/bin/init_manifest_ledger_txs.sh:ro
     entrypoint: ["/bin/bash", "-c"]
     env_file: .env
     # The last sleep is to give the transactions time to be committed. Do not remove it.
@@ -71,6 +84,8 @@ services:
     depends_on:
       manifest-ledger:
         condition: service_healthy
+      manifest-generate-proposals:
+        condition: service_completed_successfully
 
   postgrest:
     image: postgrest/postgrest
@@ -90,5 +105,6 @@ services:
 volumes:
   manifest-ledger-bin:
   manifest-ledger-data:
+  manifest-proposals-data:
   postgres-data:
   tx-count:

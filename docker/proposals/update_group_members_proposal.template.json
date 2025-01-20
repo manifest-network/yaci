@@ -1,0 +1,23 @@
+{
+  "group_policy_address": "${USER_GROUP_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/cosmos.group.v1.MsgUpdateGroupMembers",
+      "groupId": "2",
+      "admin": "${USER_GROUP_ADDRESS}",
+      "memberUpdates": [
+        {
+          "address": "${ADDR2}",
+          "weight": "0",
+          "metadata": "user2"
+        }
+      ]
+    }
+  ],
+  "metadata": "",
+  "title": "Update group members",
+  "summary": "This proposal will update the group members",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}
