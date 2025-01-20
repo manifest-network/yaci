@@ -1,62 +1,64 @@
 #!/usr/bin/env bash
+# This script initializes the manifest ledger with transactions
+# The transaction count if tracked in the file specified by TX_COUNT_PATH which is used by the YACI healthcheck script
+
+TX_COUNT=0
+PROPOSAL_ID=1
+
+# We want to keep track of the transaction count in a file; check if the directory containing the file exists
+if [ -d "${TX_COUNT_DIR}" ]; then
+  echo "${TX_COUNT_DIR} exists"
+else
+  echo "${TX_COUNT_DIR} does not exist. Aborting..."
+  exit 1
+fi
+
+# $1 = command, rest = optional flags
+function run_tx() {
+  manifestd "$@" ${COMMON_MANIFESTD_ARGS} && sleep ${TIMEOUT_COMMIT}
+  TX_COUNT=$((TX_COUNT + 1))
+}
+
+# $1 = proposal, $2 = voter address, rest = optional flags
+function run_proposal() {
+  echo "$1" >proposal.json && cat proposal.json
+  manifestd tx group submit-proposal proposal.json ${COMMON_MANIFESTD_ARGS} "${@:3}" && sleep ${TIMEOUT_COMMIT}
+  manifestd tx group vote ${PROPOSAL_ID} "$2" VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} "${@:3}" && sleep ${TIMEOUT_COMMIT}
+  sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
+  manifestd tx group exec ${PROPOSAL_ID} ${COMMON_MANIFESTD_ARGS} "${@:3}" && sleep ${TIMEOUT_COMMIT}
+  PROPOSAL_ID=$((PROPOSAL_ID + 1))
+  TX_COUNT=$((TX_COUNT + 3))
+}
 
 # Send some tokens to the POA admin address
-manifestd tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} --note "tx-01" && sleep ${TIMEOUT_COMMIT}
+run_tx tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} --from $KEY --note "tx-send-to-poa-admin"
 
 # Create a new token and modify its metadata
-manifestd tx tokenfactory create-denom ufoobar ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-02" && sleep ${TIMEOUT_COMMIT}
-manifestd tx tokenfactory modify-metadata factory/$ADDR1/ufoobar FOOBAR "This is the foobar token" 6 ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-03" && sleep ${TIMEOUT_COMMIT}
+run_tx tx tokenfactory create-denom ufoobar --from $KEY --note "tx-create-denom-ufoobar"
+run_tx tx tokenfactory modify-metadata factory/$ADDR1/ufoobar FOOBAR "This is the foobar token" 6 --from $KEY --note "tx-modify-metadata-foobar"
 
 # Submit, vote and execute a Payout proposal
-echo ${PAYOUT_PROPOSAL} > payout_proposal.json && cat payout_proposal.json
-manifestd tx group submit-proposal payout_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-04" && sleep ${TIMEOUT_COMMIT}
-manifestd tx group vote 1 $ADDR1 VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-05" && sleep ${TIMEOUT_COMMIT}
-sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
-manifestd tx group exec 1 ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-06" && sleep ${TIMEOUT_COMMIT}
-
-# Send some tokens to the POA admin address again, this time using the amino-json sign mode
-manifestd tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} --sign-mode amino-json --note "tx-07" && sleep ${TIMEOUT_COMMIT}
-
-# Submit, vote and execute a Payout proposal using the amino-json sign mode
-# Payout will be made to ADDR2
-cat payout_proposal.json | jq '.title="Payout proposal with AMINO"' > other_proposal.json
-manifestd tx group submit-proposal other_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --sign-mode amino-json --note "tx-08" && sleep ${TIMEOUT_COMMIT}
-manifestd tx group vote 2 $ADDR1 VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} --from $KEY --sign-mode amino-json --note "tx-09" && sleep ${TIMEOUT_COMMIT}
-sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
-manifestd tx group exec 2 ${COMMON_MANIFESTD_ARGS} --from $KEY --sign-mode amino-json --note "tx-10" && sleep ${TIMEOUT_COMMIT}
+run_proposal "${PAYOUT_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-payout-proposal"
 
 # Create a group with policy.
 echo ${GROUP_MEMBERS} > members.json && cat members.json
 echo ${DECISION_POLICY} > policy.json && cat policy.json
-manifestd tx group create-group-with-policy $ADDR1 "" "" members.json policy.json ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-11" --group-policy-as-admin && sleep ${TIMEOUT_COMMIT}
+run_tx tx group create-group-with-policy $ADDR1 "" "" members.json policy.json --from $KEY --note "tx-create-group-with-policy"
 
 # Send some tokens to the new group
-manifestd tx bank send $ADDR1 ${USER_GROUP_ADDRESS} 10000${DENOM} ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-12" && sleep ${TIMEOUT_COMMIT}
+run_tx tx bank send $ADDR1 ${USER_GROUP_ADDRESS} 10000${DENOM} --from $KEY --note "tx-send-to-user-group"
 
 # Submit, vote and execute a CreateDenom proposal
-echo ${CREATE_DENOM_PROPOSAL} > create_denom_proposal.json && cat create_denom_proposal.json
-manifestd tx group submit-proposal create_denom_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-13" && sleep ${TIMEOUT_COMMIT}
-manifestd tx group vote 3 $ADDR1 VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-14" && sleep ${TIMEOUT_COMMIT}
-sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
-manifestd tx group exec 3 ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-15" && sleep ${TIMEOUT_COMMIT}
+run_proposal "${CREATE_DENOM_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-create-denom-proposal"
 
 # Mint some of the new token to the new user group
-echo ${MINT_NEW_DENOM_PROPOSAL} > mint_new_denom_proposal.json && cat mint_new_denom_proposal.json
-manifestd tx group submit-proposal mint_new_denom_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-16" && sleep ${TIMEOUT_COMMIT}
-manifestd tx group vote 4 $ADDR1 VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-17" && sleep ${TIMEOUT_COMMIT}
-sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
-manifestd tx group exec 4 ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-18" && sleep ${TIMEOUT_COMMIT}
+run_proposal "${MINT_NEW_DENOM_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-mint-new-denom-proposal"
 
 # Send some of the new token to ADDR2
-echo ${SEND_NEW_DENOM_PROPOSAL} > send_new_denom_proposal.json && cat send_new_denom_proposal.json
-manifestd tx group submit-proposal send_new_denom_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-19" && sleep ${TIMEOUT_COMMIT}
-manifestd tx group vote 5 $ADDR1 VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-20" && sleep ${TIMEOUT_COMMIT}
-sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
-manifestd tx group exec 5 ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-21" && sleep ${TIMEOUT_COMMIT}
+run_proposal "${SEND_NEW_DENOM_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-send-new-denom-proposal"
 
 # Update group members
-echo ${UPDATE_GROUP_MEMBERS_PROPOSAL} > update_group_members_proposal.json && cat update_group_members_proposal.json
-manifestd tx group submit-proposal update_group_members_proposal.json ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-22" && sleep ${TIMEOUT_COMMIT}
-manifestd tx group vote 6 $ADDR1 VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-23" && sleep ${TIMEOUT_COMMIT}
-sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
-manifestd tx group exec 6 ${COMMON_MANIFESTD_ARGS} --from $KEY --note "tx-24" && sleep ${TIMEOUT_COMMIT}
+run_proposal "${UPDATE_GROUP_MEMBERS_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-update-group-members-proposal"
+
+echo "Total transactions: $TX_COUNT"
+echo "${TX_COUNT}" > "${TX_COUNT_PATH}"

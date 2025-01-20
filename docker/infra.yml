@@ -46,6 +46,7 @@ services:
     volumes:
       - manifest-ledger-bin:/usr/bin
       - manifest-ledger-data:/persistent
+      - tx-count:/tx-count
       - ./init_manifest_ledger_txs.sh:/usr/local/bin/init_manifest_ledger_txs.sh
     entrypoint: ["/bin/bash", "-c"]
     env_file: .env
@@ -90,3 +91,4 @@ volumes:
   manifest-ledger-bin:
   manifest-ledger-data:
   postgres-data:
+  tx-count:

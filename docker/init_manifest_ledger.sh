@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# This script initializes the manifest ledger genesis file and starts a ledger node
 
 update_test_genesis() {
   cat $HOME_DIR/config/genesis.json | jq $1 > $HOME_DIR/config/tmp_genesis.json

@@ -23,7 +23,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o yaci .
 FROM debian:buster-slim
 
 # Install the ca-certificates package to have SSL/TLS certificates available.
-RUN apt-get update && apt-get install -y ca-certificates
+# Install curl for health checks.
+RUN apt-get update && apt-get install -y ca-certificates curl
 
 # Copy the pre-built binary file and script from the previous stage.
 COPY --from=builder /app/yaci /usr/local/bin/yaci
