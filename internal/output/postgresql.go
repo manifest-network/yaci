@@ -30,18 +30,6 @@ var parseTxSQL string
 //go:embed sql/user_txs.sql
 var userTxsSQL string
 
-//go:embed sql/parse_manifest_txs.sql
-var parseManifestTxsSQL string
-
-//go:embed sql/parse_bank_txs.sql
-var parseBankTxsSQL string
-
-//go:embed sql/parse_group_txs.sql
-var parseGroupTxsSQL string
-
-//go:embed sql/parse_tokenfactory_txs.sql
-var parseTokenFactoryTxsSQL string
-
 type PostgresOutputHandler struct {
 	pool *pgxpool.Pool
 }
@@ -172,26 +160,6 @@ func (h *PostgresOutputHandler) initFunctions() error {
 	_, err = h.pool.Exec(ctx, executedProposalsContainingSQL)
 	if err != nil {
 		return fmt.Errorf("error while executing 'executed_proposals_containing.sql': %w", err)
-	}
-
-	_, err = h.pool.Exec(ctx, parseBankTxsSQL)
-	if err != nil {
-		return fmt.Errorf("error while executing 'parse_bank_txs.sql': %w", err)
-	}
-
-	_, err = h.pool.Exec(ctx, parseTokenFactoryTxsSQL)
-	if err != nil {
-		return fmt.Errorf("error while executing 'parse_tokenfactory_txs.sql': %w", err)
-	}
-
-	_, err = h.pool.Exec(ctx, parseManifestTxsSQL)
-	if err != nil {
-		return fmt.Errorf("error while executing 'parse_manifest_txs.sql': %w", err)
-	}
-
-	_, err = h.pool.Exec(ctx, parseGroupTxsSQL)
-	if err != nil {
-		return fmt.Errorf("error while executing 'parse_group_txs.sql': %w", err)
 	}
 
 	_, err = h.pool.Exec(ctx, parseTxSQL)
