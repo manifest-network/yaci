@@ -41,15 +41,16 @@ services:
 
   manifest-generate-proposals:
     restart: no
-    image: debian:buster-slim
+    build:
+        context: .
+        dockerfile: Dockerfile.base
     volumes:
       - ./proposals:/templates
       - manifest-proposals-data:/proposals
       - ./scripts/generate_proposals.sh:/usr/local/bin/generate_proposals.sh:ro
     entrypoint: ["/bin/bash", "-c"]
     env_file: .env
-    # Install gettext for envsubst
-    command: ["apt-get update && apt-get install -y gettext && /usr/local/bin/generate_proposals.sh"]
+    command: /usr/local/bin/generate_proposals.sh
 
   # Setup some transactions on the blockchain
   manifest-ledger-tx:

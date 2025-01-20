@@ -19,12 +19,12 @@ function run_tx() {
   TX_COUNT=$((TX_COUNT + 1))
 }
 
-# $1 = proposal, $2 = voter address, rest = optional flags
+# $1 = proposal, $2 = voter address, $3 = note, rest = optional flags
 function run_proposal() {
-  manifestd tx group submit-proposal "/proposals/$1" ${COMMON_MANIFESTD_ARGS} "${@:3}" && sleep ${TIMEOUT_COMMIT}
-  manifestd tx group vote ${PROPOSAL_ID} "$2" VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} "${@:3}" && sleep ${TIMEOUT_COMMIT}
+  manifestd tx group submit-proposal "/proposals/$1" ${COMMON_MANIFESTD_ARGS} --note "${3}-submit" "${@:4}" && sleep ${TIMEOUT_COMMIT}
+  manifestd tx group vote ${PROPOSAL_ID} "$2" VOTE_OPTION_YES '' ${COMMON_MANIFESTD_ARGS} --note "${3}-vote" "${@:4}" && sleep ${TIMEOUT_COMMIT}
   sleep ${VOTING_TIMEOUT} # Wait for the voting period to end
-  manifestd tx group exec ${PROPOSAL_ID} ${COMMON_MANIFESTD_ARGS} "${@:3}" && sleep ${TIMEOUT_COMMIT}
+  manifestd tx group exec ${PROPOSAL_ID} ${COMMON_MANIFESTD_ARGS} --note "${3}-exec" "${@:4}" && sleep ${TIMEOUT_COMMIT}
   PROPOSAL_ID=$((PROPOSAL_ID + 1))
   TX_COUNT=$((TX_COUNT + 3))
 }
@@ -42,17 +42,15 @@ run_tx tx tokenfactory change-admin factory/$ADDR1/ufoobar $ADDR2 --from $KEY --
 run_tx tx tokenfactory force-transfer 1000factory/$ADDR1/ufoobar $ADDR1 $ADDR2 --from $KEY2 --note "tx-force-transfer"
 
 ## Manifest module
-run_proposal "payout_proposal.json" "$ADDR1" --from $KEY --note "tx-payout-proposal"
+run_proposal "payout_proposal.json" "$ADDR1" "tx-payout-proposal" --from $KEY
 
 ## Group module
 # Create a group with policy.
 echo ${GROUP_MEMBERS} > members.json && cat members.json
 echo ${DECISION_POLICY} > policy.json && cat policy.json
 run_tx tx group create-group-with-policy $ADDR1 "" "" members.json policy.json --from $KEY --note "tx-create-group-with-policy"
+run_tx tx bank send $ADDR1 ${USER_GROUP_ADDRESS} 10000${DENOM} --from $KEY --note "tx-send-to-user-group"
 
-# Send some tokens to the new group
-#run_tx tx bank send $ADDR1 ${USER_GROUP_ADDRESS} 10000${DENOM} --from $KEY --note "tx-send-to-user-group"
-#
 ## Submit, vote and execute a CreateDenom proposal
 #run_proposal "${CREATE_DENOM_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-create-denom-proposal"
 #

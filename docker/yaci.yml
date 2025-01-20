@@ -22,3 +22,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Verify all transactions are present and properly returned
+  yaci_tx_check:
+    restart: "no"
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    volumes:
+        - ./scripts/yaci_tx_check.sh:/usr/local/bin/yaci_tx_check.sh:ro
+    entrypoint: ["/bin/bash", "-c"]
+    env_file: .env
+    command: /usr/local/bin/yaci_tx_check.sh
+    depends_on:
+        yaci:
+            condition: service_healthy
+        postgrest:
+            condition: service_started
