@@ -4,7 +4,7 @@ RETURNS JSONB
 LANGUAGE SQL STABLE
 AS $$
   WITH keys_to_remove AS (
-      SELECT ARRAY['@type', 'sender', 'executor', 'voter', 'messages', 'proposalId', 'proposers', 'authority', 'fromAddress', 'metadata']::text[] AS keys
+      SELECT ARRAY['@type', 'sender', 'executor', 'admin', 'voter', 'messages', 'proposalId', 'proposers', 'authority', 'fromAddress', 'metadata']::text[] AS keys
   )
   SELECT
     CASE

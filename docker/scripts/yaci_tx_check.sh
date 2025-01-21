@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Basic QC script to check if the expected transactions are present in the PostgREST API
+# Only the number of transaction, transaction memo and nested value are checked
 
 # Function to check if a transaction with a specific memo and nested value exists
 function check_tx() {
@@ -20,18 +22,18 @@ function check_tx() {
 
 # Function to validate transactions for a specific address
 function check_addr_txs() {
-  local addr expected_txs_len tx_checks addr_txs addr_txs_len tx_check
+  local addr expected_txs_len tx_checks addr_txs addr_txs_len tx_check memo_and_nested
   addr="$1"
   expected_txs_len="$2"
   tx_checks=("${@:3}")
 
-  addr_txs=$(curl -s "http://localhost:3000/rpc/user_txs?address=${addr}" |
-    jq '[.. | {memo: .memo?, nested: .is_nested?} | select(.memo != null or .nested != null)]')
-  addr_txs_len=$(echo "$addr_txs" | jq 'length')
+  addr_txs=$(curl -s "http://postgrest:3000/rpc/user_txs?address=${addr}")
+  memo_and_nested=$(echo "$addr_txs" | jq '[.. | {memo: .memo?, nested: .is_nested?} | select(.memo != null or .nested != null)]')
+  addr_txs_len=$(echo "${memo_and_nested}" | jq 'length')
 
   echo "Address: ${addr}"
 
-  if [ "$addr_txs_len" -ne "$expected_txs_len" ]; then
+  if [ "${addr_txs_len}" -ne "${expected_txs_len}" ]; then
     printf "  \\e[31m\\u2717\\e[0m Invalid number of transactions. Expected: %s, Found: %s\\n" "$expected_txs_len" "$addr_txs_len"
     return 1
   fi
@@ -40,13 +42,16 @@ function check_addr_txs() {
 
   for tx_check in "${tx_checks[@]}"; do
     IFS=":" read -r memo nested <<< "$tx_check"
-    check_tx "$addr_txs" "$memo" "$nested" || return 1
+    check_tx "$memo_and_nested" "$memo" "$nested" || return 1
   done
 }
 
 # Address-specific configurations
 declare -A ADDRESS_EXPECTED_TXS=(
-  ["${ADDR1}"]="12"
+  ["${ADDR1}"]="25"
+  ["${ADDR2}"]="10"
+  ["${USER_GROUP_ADDRESS}"]="9"
+  ["${POA_ADMIN_ADDRESS}"]="4"
 )
 
 declare -a ADDRESS1_TX_CHECKS=(
@@ -63,10 +68,57 @@ declare -a ADDRESS1_TX_CHECKS=(
   "tx-payout-proposal-exec:false"
   "tx-create-group-with-policy:false"
   "tx-send-to-user-group:false"
+  "tx-create-denom-proposal-submit:false"
+  "tx-create-denom-proposal-vote:false"
+  "tx-create-denom-proposal-exec:false"
+  "tx-mint-new-denom-proposal-submit:false"
+  "tx-mint-new-denom-proposal-vote:false"
+  "tx-mint-new-denom-proposal-exec:false"
+  "tx-send-new-denom-proposal-submit:false"
+  "tx-send-new-denom-proposal-vote:false"
+  "tx-send-new-denom-proposal-exec:false"
+  "tx-update-group-members-proposal-submit:false"
+  "tx-update-group-members-proposal-vote:false"
+  "tx-update-group-members-proposal-exec:false"
+)
+
+declare -a ADDRESS2_TX_CHECKS=(
+  "tx-multi-send-to-poa-admin:false"
+  "tx-change-admin:false"
+  "tx-force-transfer:false"
+  "tx-payout-proposal-submit:false"
+  "tx-payout-proposal-submit:true"
+  "tx-create-group-with-policy:false"
+  "tx-send-new-denom-proposal-submit:false"
+  "tx-send-new-denom-proposal-submit:true"
+  "tx-update-group-members-proposal-submit:false"
+  "tx-update-group-members-proposal-submit:true"
+)
+
+declare -a USER_GROUP_ADDRESS_TX_CHECKS=(
+  "tx-send-to-user-group:false"
+  "tx-create-denom-proposal-submit:false"
+  "tx-create-denom-proposal-submit:true"
+  "tx-mint-new-denom-proposal-submit:false"
+  "tx-mint-new-denom-proposal-submit:true"
+  "tx-send-new-denom-proposal-submit:false"
+  "tx-send-new-denom-proposal-submit:true"
+  "tx-update-group-members-proposal-submit:false"
+  "tx-update-group-members-proposal-submit:true"
+)
+
+declare -a POA_ADMIN_ADDRESS_TX_CHECKS=(
+  "tx-send-to-poa-admin:false"
+  "tx-multi-send-to-poa-admin:false"
+  "tx-payout-proposal-submit:false"
+  "tx-payout-proposal-submit:true"
 )
 
 declare -A ADDRESS_TX_CHECKS=(
   ["${ADDR1}"]="ADDRESS1_TX_CHECKS[@]"
+  ["${ADDR2}"]="ADDRESS2_TX_CHECKS[@]"
+  ["${USER_GROUP_ADDRESS}"]="USER_GROUP_ADDRESS_TX_CHECKS[@]"
+  ["${POA_ADMIN_ADDRESS}"]="POA_ADMIN_ADDRESS_TX_CHECKS[@]"
 )
 
 for addr in "${!ADDRESS_EXPECTED_TXS[@]}"; do

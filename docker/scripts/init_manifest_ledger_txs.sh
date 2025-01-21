@@ -45,23 +45,15 @@ run_tx tx tokenfactory force-transfer 1000factory/$ADDR1/ufoobar $ADDR1 $ADDR2 -
 run_proposal "payout_proposal.json" "$ADDR1" "tx-payout-proposal" --from $KEY
 
 ## Group module
-# Create a group with policy.
 echo ${GROUP_MEMBERS} > members.json && cat members.json
 echo ${DECISION_POLICY} > policy.json && cat policy.json
-run_tx tx group create-group-with-policy $ADDR1 "" "" members.json policy.json --from $KEY --note "tx-create-group-with-policy"
+run_tx tx group create-group-with-policy $ADDR1 "" "" members.json policy.json --from $KEY --group-policy-as-admin --note "tx-create-group-with-policy"
 run_tx tx bank send $ADDR1 ${USER_GROUP_ADDRESS} 10000${DENOM} --from $KEY --note "tx-send-to-user-group"
 
-## Submit, vote and execute a CreateDenom proposal
-#run_proposal "${CREATE_DENOM_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-create-denom-proposal"
-#
-## Mint some of the new token to the new user group
-#run_proposal "${MINT_NEW_DENOM_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-mint-new-denom-proposal"
-#
-## Send some of the new token to ADDR2
-#run_proposal "${SEND_NEW_DENOM_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-send-new-denom-proposal"
-#
-## Update group members
-#run_proposal "${UPDATE_GROUP_MEMBERS_PROPOSAL}" "$ADDR1" --from $KEY --note "tx-update-group-members-proposal"
+run_proposal "create_denom_proposal.json" "$ADDR1" "tx-create-denom-proposal" --from $KEY
+run_proposal "mint_new_denom_proposal.json" "$ADDR1" "tx-mint-new-denom-proposal" --from $KEY
+run_proposal "send_new_denom_proposal.json" "$ADDR1" "tx-send-new-denom-proposal" --from $KEY
+run_proposal "update_group_members_proposal.json" "$ADDR1" "tx-update-group-members-proposal" --from $KEY
 
 echo "Total transactions: $TX_COUNT"
 echo "${TX_COUNT}" > "${TX_COUNT_PATH}"

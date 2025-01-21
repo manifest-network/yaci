@@ -127,7 +127,23 @@ json_row AS (
       'tx_hash', all_msgs.tx_hash,
       'height', (all_msgs.tx_data->'txResponse'->>'height')::BIGINT,
       'proposal_id', proposal_id,
-      'metadata', api.parse_tx(all_msgs.message)
+      'metadata', api.parse_tx(all_msgs.message),
+      'mentions', COALESCE(
+        (
+          SELECT jsonb_agg(DISTINCT m)
+          FROM (
+            SELECT unnest(
+              regexp_matches(
+                all_msgs.message::text,
+                -- Match bech32 addresses (ish). Good enough for now
+                E'(?<=[\\"\'\\\\s]|^)([a-z0-9]{2,83}1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38,})(?=[\\"\'\\\\s]|$)',
+                'g'
+              )
+            ) AS m
+          ) t
+        ),
+        '[]'::jsonb
+      )
     ) AS row_obj
   FROM all_msgs
 )
