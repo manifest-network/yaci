@@ -50,13 +50,9 @@ func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error)
 	}
 
 	// Initialize functions. This is idempotent.
-	if err := handler.initFunctions(); err != nil {
-		return nil, fmt.Errorf("failed to initialize functions: %w", err)
-	}
-
-	if err := handler.initPermissions(); err != nil {
-		return nil, fmt.Errorf("failed to initialize permissions: %w", err)
-	}
+	//if err := handler.initFunctions(); err != nil {
+	//	return nil, fmt.Errorf("failed to initialize functions: %w", err)
+	//}
 
 	return handler, nil
 }
@@ -65,7 +61,7 @@ func (h *PostgresOutputHandler) GetLatestBlock(ctx context.Context) (*models.Blo
 	var block models.Block
 	err := h.pool.QueryRow(ctx, `
 		SELECT id
-		FROM api.blocks
+		FROM api.blocks_raw
 		ORDER BY id DESC
 		LIMIT 1
 	`).Scan(&block.ID)
@@ -83,9 +79,9 @@ func (h *PostgresOutputHandler) GetMissingBlockIds(ctx context.Context) ([]uint6
 		SELECT s.id
 		FROM generate_series(
 				 1,
-				 (SELECT MAX(id) FROM api.blocks)
+				 (SELECT MAX(id) FROM api.blocks_raw)
 			 ) AS s(id)
-		LEFT JOIN api.blocks t ON t.id = s.id
+		LEFT JOIN api.blocks_raw t ON t.id = s.id
 		WHERE t.id IS NULL;
 	`)
 	if err != nil {
@@ -114,7 +110,7 @@ func (h *PostgresOutputHandler) WriteBlockWithTransactions(ctx context.Context, 
 
 	// Write block
 	_, err = tx.Exec(ctx, `
-		INSERT INTO api.blocks (id, data) VALUES ($1, $2)
+		INSERT INTO api.blocks_raw (id, data) VALUES ($1, $2)
 		ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data;
 	`, block.ID, block.Data)
 	if err != nil {
@@ -124,7 +120,7 @@ func (h *PostgresOutputHandler) WriteBlockWithTransactions(ctx context.Context, 
 	// Write transactions
 	for _, txData := range transactions {
 		_, err = tx.Exec(ctx, `
-			INSERT INTO api.transactions (id, data) VALUES ($1, $2)
+			INSERT INTO api.transactions_raw (id, data) VALUES ($1, $2)
 			ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data;
 		`, txData.Hash, txData.Data)
 		if err != nil {
