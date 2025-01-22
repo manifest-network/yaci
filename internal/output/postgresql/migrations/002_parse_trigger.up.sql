@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS api.transactions_main (
     fee JSONB,
     memo TEXT,
     error TEXT,
-    height TEXT NOT NULL
+    height TEXT NOT NULL,
+    timestamp TEXT NOT NULL
 );
 
 -- This table stores the raw message data from the transaction
@@ -117,23 +118,42 @@ BEGIN
     error_text := extract_proposal_failure_logs(NEW.data);
   END IF;
 
-  INSERT INTO api.transactions_main (id, fee, memo, error, height)
+  INSERT INTO api.transactions_main (id, fee, memo, error, height, timestamp)
   VALUES (
             NEW.id,
             NEW.data->'tx'->'authInfo'->'fee',
             NEW.data->'tx'->'body'->>'memo',
             error_text,
-            NEW.data->'txResponse'->>'height'
+            NEW.data->'txResponse'->>'height',
+            NEW.data->'txResponse'->>'timestamp'
          )
   ON CONFLICT (id) DO UPDATE
   SET fee = EXCLUDED.fee,
       memo = EXCLUDED.memo,
       error = EXCLUDED.error,
-      height = EXCLUDED.height;
+      height = EXCLUDED.height,
+      timestamp = EXCLUDED.timestamp;
 
+  -- Insert top level messages
   INSERT INTO api.messages_raw (id, message_index, data)
   SELECT NEW.id, message_index - 1, message
   FROM jsonb_array_elements(NEW.data->'tx'->'body'->'messages') WITH ORDINALITY AS message(message, message_index);
+
+  INSERT INTO api.messages_raw (id, message_index, data)
+  SELECT
+    NEW.id,
+    -- We make a derived index for nested messages so they don't collide with top level messages
+    (top_level.msg_index - 1) * 1000 + sub_level.sub_index,
+    sub_level.sub_msg
+  FROM jsonb_array_elements(NEW.data->'tx'->'body'->'messages')
+       WITH ORDINALITY AS top_level(msg, msg_index)
+       CROSS JOIN LATERAL (
+         SELECT sub_msg, sub_index
+         FROM jsonb_array_elements(top_level.msg->'messages')
+              WITH ORDINALITY AS inner_msg(sub_msg, sub_index)
+       ) AS sub_level
+  WHERE top_level.msg->>'@type' = '/cosmos.group.v1.MsgSubmitProposal'
+    AND top_level.msg->'messages' IS NOT NULL;
 
   RETURN NEW;
 END;
@@ -155,6 +175,7 @@ BEGIN
     NULLIF(NEW.data->>'voter', ''),
     NULLIF(NEW.data->>'address', ''),
     NULLIF(NEW.data->>'executor', ''),
+    NULLIF(NEW.data->>'authority', ''),
     (
       SELECT jsonb_array_elements_text(NEW.data->'proposers')
       LIMIT 1
