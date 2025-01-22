@@ -35,7 +35,7 @@ func TestPostgres(t *testing.T) {
 	// Start the infrastructure using Docker Compose.
 	// The infrastructure is defined in the `infra.yml` file.
 	opts := &docker.Options{WorkingDir: DockerWorkingDirectory}
-	_, err := docker.RunDockerComposeE(t, opts, "-f", "infra.yml", "up", "-d", "--wait")
+	_, err := docker.RunDockerComposeE(t, opts, "-f", "infra.yml", "up", "--build", "-d", "--wait")
 	require.NoError(t, err)
 
 	testExtractBlocksAndTxs(t)
