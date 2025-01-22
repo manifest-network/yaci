@@ -170,9 +170,15 @@ BEGIN
 
   -- Insert top level messages
   INSERT INTO api.messages_raw (id, message_index, data)
-  SELECT NEW.id, message_index - 1, message
-  FROM jsonb_array_elements(NEW.data->'tx'->'body'->'messages') WITH ORDINALITY AS message(message, message_index);
+  SELECT
+    NEW.id,
+    message_index - 1,
+    message
+  FROM jsonb_array_elements(NEW.data->'tx'->'body'->'messages') WITH ORDINALITY AS message(message, message_index)
+  ON CONFLICT (id, message_index) DO UPDATE
+  SET data = EXCLUDED.data;
 
+  -- Insert nested messages, e.g., messages within a proposal
   INSERT INTO api.messages_raw (id, message_index, data)
   SELECT
     NEW.id,
@@ -186,8 +192,11 @@ BEGIN
          FROM jsonb_array_elements(top_level.msg->'messages')
               WITH ORDINALITY AS inner_msg(sub_msg, sub_index)
        ) AS sub_level
+  -- TODO: Add x/gov support
   WHERE top_level.msg->>'@type' = '/cosmos.group.v1.MsgSubmitProposal'
-    AND top_level.msg->'messages' IS NOT NULL;
+    AND top_level.msg->'messages' IS NOT NULL
+  ON CONFLICT (id, message_index) DO UPDATE
+  SET data = EXCLUDED.data;
 
   RETURN NEW;
 END;
@@ -239,7 +248,11 @@ BEGIN
            mentions,
            metadata
          )
-  ON CONFLICT (id, message_index) DO NOTHING;
+  ON CONFLICT (id, message_index) DO UPDATE
+  SET type = EXCLUDED.type,
+      sender = EXCLUDED.sender,
+      mentions = EXCLUDED.mentions,
+      metadata = EXCLUDED.metadata;
 
   RETURN NEW;
 END;

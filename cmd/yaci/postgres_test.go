@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	RestTxEndpoint    = fmt.Sprintf("http://%s/transactions", RestEndpoint)
-	RestBlockEndpoint = fmt.Sprintf("http://%s/blocks", RestEndpoint)
+	RestTxEndpoint    = fmt.Sprintf("http://%s/transactions_raw", RestEndpoint)
+	RestBlockEndpoint = fmt.Sprintf("http://%s/blocks_raw", RestEndpoint)
 )
 
 func TestPostgres(t *testing.T) {
@@ -126,7 +126,7 @@ func testReindex(t *testing.T) {
 
 		// Update the data field of block 3 to an empty JSON object
 		_, err := docker.RunE(t, "postgres", &docker.RunOptions{
-			Command:              []string{"psql", "-h", "localhost", "-U", "postgres", "-c", "UPDATE api.blocks SET data = '{}' WHERE id = 3"},
+			Command:              []string{"psql", "-h", "localhost", "-U", "postgres", "-c", "UPDATE api.blocks_raw SET data = '{}' WHERE id = 3"},
 			EnvironmentVariables: []string{"PGPASSWORD=foobar"},
 			Detach:               false,
 			Remove:               true,
