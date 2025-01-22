@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS api.transactions_main (
     memo TEXT,
     error TEXT,
     height TEXT NOT NULL,
-    timestamp TEXT NOT NULL
+    timestamp TEXT NOT NULL,
+    proposal_ids TEXT[]
 );
 
 -- This table stores the raw message data from the transaction
@@ -105,12 +106,31 @@ WITH
   LIMIT 1;
 $$;
 
+CREATE OR REPLACE FUNCTION extract_proposal_ids(events JSONB)
+RETURNS TEXT[]
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  proposal_ids TEXT[];
+BEGIN
+   SELECT
+     ARRAY_AGG(DISTINCT TRIM(BOTH '"' FROM attr->>'value'))
+   INTO proposal_ids
+   FROM jsonb_array_elements(events) AS ev(event)
+   CROSS JOIN LATERAL jsonb_array_elements(ev.event->'attributes') AS attr
+   WHERE attr->>'key' = 'proposal_id';
+
+  RETURN proposal_ids;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION update_transaction_main()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
 DECLARE
   error_text TEXT;
+  proposal_ids TEXT[];
 BEGIN
   error_text := NEW.data->'txResponse'->>'rawLog';
 
@@ -118,21 +138,25 @@ BEGIN
     error_text := extract_proposal_failure_logs(NEW.data);
   END IF;
 
-  INSERT INTO api.transactions_main (id, fee, memo, error, height, timestamp)
+  proposal_ids := extract_proposal_ids(NEW.data->'txResponse'->'events');
+
+  INSERT INTO api.transactions_main (id, fee, memo, error, height, timestamp, proposal_ids)
   VALUES (
             NEW.id,
             NEW.data->'tx'->'authInfo'->'fee',
             NEW.data->'tx'->'body'->>'memo',
             error_text,
             NEW.data->'txResponse'->>'height',
-            NEW.data->'txResponse'->>'timestamp'
+            NEW.data->'txResponse'->>'timestamp',
+            proposal_ids
          )
   ON CONFLICT (id) DO UPDATE
   SET fee = EXCLUDED.fee,
       memo = EXCLUDED.memo,
       error = EXCLUDED.error,
       height = EXCLUDED.height,
-      timestamp = EXCLUDED.timestamp;
+      timestamp = EXCLUDED.timestamp,
+      proposal_ids = EXCLUDED.proposal_ids;
 
   -- Insert top level messages
   INSERT INTO api.messages_raw (id, message_index, data)
