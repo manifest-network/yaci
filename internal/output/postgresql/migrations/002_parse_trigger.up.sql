@@ -36,6 +36,10 @@ CREATE TABLE IF NOT EXISTS api.messages_main(
     FOREIGN KEY (id, message_index) REFERENCES api.messages_raw(id, message_index)
 );
 
+---
+-- Helper functions
+---
+-- Extract Bech32-like addresses from a JSONB object and return them as an array
 CREATE OR REPLACE FUNCTION extract_addresses(msg JSONB)
 RETURNS TEXT[]
 LANGUAGE SQL STABLE
@@ -57,6 +61,7 @@ SELECT array_agg(DISTINCT addr)
 FROM addresses;
 $$;
 
+-- Filter metadata from a message
 CREATE OR REPLACE FUNCTION extract_metadata(msg JSONB)
 RETURNS JSONB
 LANGUAGE SQL STABLE
@@ -74,6 +79,7 @@ AS $$
     END
 $$;
 
+-- Extract the logs from a failed proposal execution
 CREATE OR REPLACE FUNCTION extract_proposal_failure_logs(json_data JSONB)
 RETURNS TEXT
 LANGUAGE sql
@@ -106,6 +112,7 @@ WITH
   LIMIT 1;
 $$;
 
+-- Extract proposal IDs from a transaction's events
 CREATE OR REPLACE FUNCTION extract_proposal_ids(events JSONB)
 RETURNS TEXT[]
 LANGUAGE plpgsql
@@ -124,6 +131,9 @@ BEGIN
 END;
 $$;
 
+---
+-- Function to parse a raw transaction into the transactions_main table
+---
 CREATE OR REPLACE FUNCTION update_transaction_main()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -146,8 +156,8 @@ BEGIN
             NEW.data->'tx'->'authInfo'->'fee',
             NEW.data->'tx'->'body'->>'memo',
             error_text,
-            NEW.data->'txResponse'->>'height',
-            NEW.data->'txResponse'->>'timestamp',
+            (NEW.data->'txResponse'->>'height')::BIGINT,
+            (NEW.data->'txResponse'->>'timestamp')::TIMESTAMPTZ,
             proposal_ids
          )
   ON CONFLICT (id) DO UPDATE
@@ -183,6 +193,9 @@ BEGIN
 END;
 $$;
 
+---
+-- Function to parse a raw message into the messages_main table
+---
 CREATE OR REPLACE FUNCTION update_message_main()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -232,27 +245,33 @@ BEGIN
 END;
 $$;
 
--- Parse transaction on insert or update
+---
+-- Trigger to parse transaction data on insert or update
+---
 CREATE OR REPLACE TRIGGER new_transaction_update
 AFTER INSERT OR UPDATE
 ON api.transactions_raw
 FOR EACH ROW
 EXECUTE FUNCTION update_transaction_main();
 
--- Parse message on insert or update
 CREATE OR REPLACE TRIGGER new_message_update
 AFTER INSERT OR UPDATE
 ON api.messages_raw
 FOR EACH ROW
 EXECUTE FUNCTION update_message_main();
 
+---
+-- Grant permissions to the web_anon role
+---
 GRANT SELECT ON api.blocks_raw TO web_anon;
 GRANT SELECT ON api.transactions_main TO web_anon;
 GRANT SELECT ON api.transactions_raw TO web_anon;
 GRANT SELECT ON api.messages_raw TO web_anon;
 GRANT SELECT ON api.messages_main TO web_anon;
 
--- Use a staging table to convert the historical data to the new format
+---
+-- Convert the existing data to the new schema using a staging table and our update triggers
+---
 CREATE TABLE IF NOT EXISTS api.transactions_staging (
     id VARCHAR(64) PRIMARY KEY,
     data JSONB NOT NULL
@@ -265,13 +284,16 @@ FOR EACH ROW
 EXECUTE FUNCTION update_transaction_main();
 
 INSERT INTO api.transactions_staging(id, data)
-SELECT id, data FROM api.transactions_raw;
+SELECT id, data
+FROM api.transactions_raw;
 
 DROP TRIGGER staging_transaction_update ON api.transactions_staging;
-
 DROP TABLE api.transactions_staging;
 
--- Create indexes
-CREATE INDEX ON api.messages_main USING GIN (mentions);
+---
+-- Create indexes on user addresses to speed up queries
+---
+CREATE INDEX IF NOT EXISTS message_main_mentions_idx ON api.messages_main USING GIN (mentions);
+CREATE INDEX IF NOT EXISTS message_main_sender_idx ON api.messages_main(sender);
 
 COMMIT;
