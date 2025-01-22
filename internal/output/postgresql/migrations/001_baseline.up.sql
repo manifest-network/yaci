@@ -1,4 +1,5 @@
--- +goose Up
+BEGIN;
+
 -- Create the schema if it doesn't exist
 CREATE SCHEMA IF NOT EXISTS api;
 
@@ -135,6 +136,4 @@ FROM
 ) combined;
 $$ LANGUAGE SQL STABLE;
 
-
--- +goose Down
--- Rollback is not supported for the baseline migration.
+COMMIT;
