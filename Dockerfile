@@ -20,10 +20,10 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o yaci .
 
 # Start from a Debian Slim image to keep the final image size down.
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 # Install the ca-certificates package to have SSL/TLS certificates available.
-RUN apt-get update && apt-get install -y ca-certificates
+RUN apt-get update && apt-get install -y ca-certificates curl
 
 # Copy the pre-built binary file and script from the previous stage.
 COPY --from=builder /app/yaci /usr/local/bin/yaci

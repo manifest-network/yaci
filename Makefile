@@ -47,6 +47,14 @@ coverage: ## Run tests with coverage
 	@echo "--> Running coverage complete"
 
 #### Docker ####
+docker-infra-up:
+	@echo "--> Running docker compose up --build --wait -d"
+	@docker compose -f docker/infra.yml up --build --wait -d
+
+docker-infra-down:
+	@echo "--> Running docker compose down -v"
+	@docker compose -f docker/infra.yml down -v
+
 docker-up:
 	@echo "--> Running docker compose up --build --wait -d"
 	@docker compose -f docker/yaci.yml up --build --wait -d
@@ -55,7 +63,7 @@ docker-down:
 	@echo "--> Running docker compose down -v"
 	@docker compose -f docker/yaci.yml down -v
 
-.PHONY: docker-up docker-down
+.PHONY: docker-up docker-down docker-infra-up docker-infra-down
 
 ####  Linting  ####
 golangci_lint_cmd=golangci-lint

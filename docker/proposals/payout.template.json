@@ -1,0 +1,24 @@
+{
+  "group_policy_address": "${POA_ADMIN_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/liftedinit.manifest.v1.MsgPayout",
+      "authority": "${POA_ADMIN_ADDRESS}",
+      "payoutPairs": [
+        {
+          "address": "${ADDR2}",
+          "coin": {
+            "denom": "${DENOM}",
+            "amount": "1000000"
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": "",
+  "title": "Payout to user 2",
+  "summary": "This is a 1MFX payout to ${ADDR2}",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}
