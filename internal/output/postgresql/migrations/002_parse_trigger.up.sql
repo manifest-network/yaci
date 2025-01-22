@@ -6,14 +6,17 @@ REVOKE SELECT ON api.transactions FROM web_anon;
 ALTER TABLE api.blocks RENAME TO blocks_raw;
 ALTER TABLE api.transactions RENAME TO transactions_raw;
 
+-- This table stores the parsed transaction data
 CREATE TABLE IF NOT EXISTS api.transactions_main (
     id VARCHAR(64) PRIMARY KEY REFERENCES api.transactions_raw(id),
     fee JSONB,
     memo TEXT,
     error TEXT,
-    height TEXT NOT NULL
+    height TEXT NOT NULL,
+    mentions TEXT[]
 );
 
+-- This table stores the raw message data from the transaction
 CREATE TABLE IF NOT EXISTS api.messages_raw(
     id VARCHAR(64) REFERENCES api.transactions_raw(id),
     message_index BIGINT,
@@ -29,6 +32,27 @@ CREATE TABLE IF NOT EXISTS api.messages_main(
     PRIMARY KEY (id, message_index),
     FOREIGN KEY (id, message_index) REFERENCES api.messages_raw(id, message_index)
 );
+
+CREATE OR REPLACE FUNCTION extract_addresses(tx_data JSONB)
+RETURNS TEXT[]
+LANGUAGE SQL STABLE
+AS $$
+WITH addresses AS (
+  SELECT unnest(
+    regexp_matches(
+      -- Convert the JSONB to text, then do a pattern match
+      tx_data::text,
+      -- Very rough bech32-like pattern:
+      --   - 2-83 chars of [a-z0-9], plus '1', plus 38+ chars of the set [qpzry9x8gf2tvdw0s3jn54khce6mua7l]
+      --   We allow trailing chars because some addresses can be longer if they contain e.g. valoper style, etc.
+      E'(?<=[\\"\'\\\\s]|^)([a-z0-9]{2,83}1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38,})(?=[\\"\'\\\\s]|$)',
+      'g'
+    )
+  ) AS addr
+)
+SELECT array_agg(DISTINCT addr)
+FROM addresses;
+$$;
 
 CREATE OR REPLACE FUNCTION extract_proposal_failure_logs(json_data JSONB)
 RETURNS TEXT
@@ -68,6 +92,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   error_text TEXT;
+  mentions TEXT[];
 BEGIN
   error_text := NEW.data->'txResponse'->>'rawLog';
 
@@ -75,19 +100,23 @@ BEGIN
     error_text := extract_proposal_failure_logs(NEW.data);
   END IF;
 
-  INSERT INTO api.transactions_main (id, fee, memo, error, height)
+  mentions := extract_addresses(NEW.data);
+
+  INSERT INTO api.transactions_main (id, fee, memo, error, height, mentions)
   VALUES (
             NEW.id,
             NEW.data->'tx'->'authInfo'->'fee',
             NEW.data->'tx'->'body'->>'memo',
             error_text,
-            NEW.data->'txResponse'->>'height'
+            NEW.data->'txResponse'->>'height',
+            mentions
          )
   ON CONFLICT (id) DO UPDATE
   SET fee = EXCLUDED.fee,
       memo = EXCLUDED.memo,
       error = EXCLUDED.error,
-      height = EXCLUDED.height;
+      height = EXCLUDED.height,
+      mentions = EXCLUDED.mentions;
 
   INSERT INTO api.messages_raw (id, message_index, data)
   SELECT NEW.id, message_index - 1, message
@@ -176,5 +205,8 @@ SELECT id, data FROM api.transactions_raw;
 DROP TRIGGER staging_transaction_update ON api.transactions_staging;
 
 DROP TABLE api.transactions_staging;
+
+-- Create indexes
+CREATE INDEX ON api.transactions_main USING GIN (mentions);
 
 COMMIT;
