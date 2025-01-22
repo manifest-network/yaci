@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS api.transactions_main (
     fee JSONB,
     memo TEXT,
     error TEXT,
-    height TEXT NOT NULL,
-    mentions TEXT[]
+    height TEXT NOT NULL
 );
 
 -- This table stores the raw message data from the transaction
@@ -29,12 +28,13 @@ CREATE TABLE IF NOT EXISTS api.messages_main(
     message_index BIGINT,
     type TEXT,
     sender TEXT,
+    mentions TEXT[],
     metadata JSONB,
     PRIMARY KEY (id, message_index),
     FOREIGN KEY (id, message_index) REFERENCES api.messages_raw(id, message_index)
 );
 
-CREATE OR REPLACE FUNCTION extract_addresses(tx_data JSONB)
+CREATE OR REPLACE FUNCTION extract_addresses(msg JSONB)
 RETURNS TEXT[]
 LANGUAGE SQL STABLE
 AS $$
@@ -42,7 +42,7 @@ WITH addresses AS (
   SELECT unnest(
     regexp_matches(
       -- Convert the JSONB to text, then do a pattern match
-      tx_data::text,
+      msg::text,
       -- Very rough bech32-like pattern:
       --   - 2-83 chars of [a-z0-9], plus '1', plus 38+ chars of the set [qpzry9x8gf2tvdw0s3jn54khce6mua7l]
       --   We allow trailing chars because some addresses can be longer if they contain e.g. valoper style, etc.
@@ -110,7 +110,6 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   error_text TEXT;
-  mentions TEXT[];
 BEGIN
   error_text := NEW.data->'txResponse'->>'rawLog';
 
@@ -118,23 +117,19 @@ BEGIN
     error_text := extract_proposal_failure_logs(NEW.data);
   END IF;
 
-  mentions := extract_addresses(NEW.data);
-
-  INSERT INTO api.transactions_main (id, fee, memo, error, height, mentions)
+  INSERT INTO api.transactions_main (id, fee, memo, error, height)
   VALUES (
             NEW.id,
             NEW.data->'tx'->'authInfo'->'fee',
             NEW.data->'tx'->'body'->>'memo',
             error_text,
-            NEW.data->'txResponse'->>'height',
-            mentions
+            NEW.data->'txResponse'->>'height'
          )
   ON CONFLICT (id) DO UPDATE
   SET fee = EXCLUDED.fee,
       memo = EXCLUDED.memo,
       error = EXCLUDED.error,
-      height = EXCLUDED.height,
-      mentions = EXCLUDED.mentions;
+      height = EXCLUDED.height;
 
   INSERT INTO api.messages_raw (id, message_index, data)
   SELECT NEW.id, message_index - 1, message
@@ -150,6 +145,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   sender TEXT;
+  mentions TEXT[];
   metadata JSONB;
 BEGIN
   sender := COALESCE(
@@ -173,14 +169,16 @@ BEGIN
     )
   );
 
+  mentions := extract_addresses(NEW.data);
   metadata := extract_metadata(NEW.data);
 
-  INSERT INTO api.messages_main (id, message_index, type, sender, metadata)
+  INSERT INTO api.messages_main (id, message_index, type, sender, mentions, metadata)
   VALUES (
            NEW.id,
            NEW.message_index,
            NEW.data->>'@type',
            sender,
+           mentions,
            metadata
          )
   ON CONFLICT (id, message_index) DO NOTHING;
@@ -229,6 +227,6 @@ DROP TRIGGER staging_transaction_update ON api.transactions_staging;
 DROP TABLE api.transactions_staging;
 
 -- Create indexes
-CREATE INDEX ON api.transactions_main USING GIN (mentions);
+CREATE INDEX ON api.messages_main USING GIN (mentions);
 
 COMMIT;
