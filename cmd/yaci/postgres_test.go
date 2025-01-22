@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 6 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 6)
+		// The number of transactions is 25 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 25)
 	})
 }
 
