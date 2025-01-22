@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS api.messages_main(
     message_index BIGINT,
     type TEXT,
     sender TEXT,
+    metadata JSONB,
     PRIMARY KEY (id, message_index),
     FOREIGN KEY (id, message_index) REFERENCES api.messages_raw(id, message_index)
 );
@@ -52,6 +53,23 @@ WITH addresses AS (
 )
 SELECT array_agg(DISTINCT addr)
 FROM addresses;
+$$;
+
+CREATE OR REPLACE FUNCTION extract_metadata(msg JSONB)
+RETURNS JSONB
+LANGUAGE SQL STABLE
+AS $$
+  WITH keys_to_remove AS (
+      SELECT ARRAY['@type', 'sender', 'executor', 'admin', 'voter', 'messages', 'proposalId', 'proposers', 'authority', 'fromAddress', 'metadata']::text[] AS keys
+  )
+  SELECT
+    CASE
+      -- If 'metadata' key exists and is a JSON object, merge its contents into the top-level JSON
+      WHEN msg ? 'metadata' AND jsonb_typeof(msg->'metadata') = 'object' THEN
+        (msg - (SELECT keys FROM keys_to_remove)) || (msg->'metadata')
+      ELSE
+        msg - (SELECT keys FROM keys_to_remove)
+    END
 $$;
 
 CREATE OR REPLACE FUNCTION extract_proposal_failure_logs(json_data JSONB)
@@ -132,6 +150,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   sender TEXT;
+  metadata JSONB;
 BEGIN
   sender := COALESCE(
     NULLIF(NEW.data->>'sender', ''),
@@ -154,12 +173,15 @@ BEGIN
     )
   );
 
-  INSERT INTO api.messages_main (id, message_index, type, sender)
+  metadata := extract_metadata(NEW.data);
+
+  INSERT INTO api.messages_main (id, message_index, type, sender, metadata)
   VALUES (
            NEW.id,
            NEW.message_index,
            NEW.data->>'@type',
-           sender
+           sender,
+           metadata
          )
   ON CONFLICT (id, message_index) DO NOTHING;
 
