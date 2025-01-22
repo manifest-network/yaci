@@ -7,9 +7,18 @@ services:
     build:
       context: ..
       dockerfile: Dockerfile
+    volumes:
+      - tx-count:/tx-count:ro # From infra.yml
+      - ./scripts/yaci_healthcheck.sh:/usr/local/bin/yaci_healthcheck.sh:ro
     command: ["extract", "postgres", "manifest-ledger:${GRPC}", "-p", "postgres://postgres:foobar@db:5432/postgres", "--live", "-k"]
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
       manifest-ledger-tx:
         condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/yaci_healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

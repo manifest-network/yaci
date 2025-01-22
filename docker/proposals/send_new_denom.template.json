@@ -1,0 +1,22 @@
+{
+  "group_policy_address": "${USER_GROUP_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/cosmos.bank.v1beta1.MsgSend",
+      "fromAddress": "${USER_GROUP_ADDRESS}",
+      "toAddress": "${ADDR2}",
+      "amount": [
+        {
+          "denom": "factory/${USER_GROUP_ADDRESS}/utool",
+          "amount": "1000000"
+        }
+      ]
+    }
+  ],
+  "metadata": "",
+  "title": "Send 1M utool to user 2",
+  "summary": "This proposal will send 1 TOOL to ${ADDR2}",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}

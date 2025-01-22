@@ -1,0 +1,20 @@
+{
+  "group_policy_address": "${USER_GROUP_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/osmosis.tokenfactory.v1beta1.MsgMint",
+      "sender": "${USER_GROUP_ADDRESS}",
+      "mintToAddress": "${USER_GROUP_ADDRESS}",
+      "amount": {
+        "denom": "factory/${USER_GROUP_ADDRESS}/utool",
+        "amount": "5000000"
+      }
+    }
+  ],
+  "metadata": "",
+  "title": "Mint 1M utool",
+  "summary": "This proposal will mint 1M utool",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}
