@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/liftedinit/yaci/internal/output/postgresql"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
