@@ -5,13 +5,12 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/liftedinit/yaci/internal/output/postgresql"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/liftedinit/yaci/internal/config"
 	"github.com/liftedinit/yaci/internal/extractor"
-
-	"github.com/liftedinit/yaci/internal/output"
 )
 
 var PostgresRunE = func(cmd *cobra.Command, args []string) error {
@@ -32,7 +31,7 @@ var PostgresRunE = func(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to parse PostgreSQL connection string: %w", err)
 	}
 
-	outputHandler, err := output.NewPostgresOutputHandler(postgresConfig.ConnString)
+	outputHandler, err := postgresql.NewPostgresOutputHandler(postgresConfig.ConnString)
 	if err != nil {
 		return fmt.Errorf("failed to create PostgreSQL output handler: %w", err)
 	}

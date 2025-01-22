@@ -1,29 +1,32 @@
-package output
+package postgresql
 
 import (
 	"context"
+	"embed"
 	_ "embed"
+	"errors"
 	"fmt"
 	"log/slog"
 
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/golang-migrate/migrate/v4"
+	migratepgx "github.com/golang-migrate/migrate/v4/database/pgx"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/liftedinit/yaci/internal/models"
 )
 
-//go:embed sql/init.sql
-var initSQL string
-
-//go:embed sql/get_txs.sql
-var getTxsSQL string
+//go:embed migrations/*
+var migrationsFS embed.FS
 
 type PostgresOutputHandler struct {
 	pool *pgxpool.Pool
 }
 
 func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error) {
-	pool, err := pgxpool.Connect(context.Background(), connString)
+	pool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}
@@ -32,14 +35,9 @@ func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error)
 		pool: pool,
 	}
 
-	// Initialize tables. This is idempotent.
-	if err := handler.initTables(); err != nil {
-		return nil, fmt.Errorf("failed to initialize tables: %w", err)
-	}
-
-	// Initialize functions. This is idempotent.
-	if err := handler.initFunctions(); err != nil {
-		return nil, fmt.Errorf("failed to initialize functions: %w", err)
+	// Run migrations. This is idempotent.
+	if err = handler.runMigrations(); err != nil {
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return handler, nil
@@ -54,7 +52,7 @@ func (h *PostgresOutputHandler) GetLatestBlock(ctx context.Context) (*models.Blo
 		LIMIT 1
 	`).Scan(&block.ID)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil // No rows found
 		}
 		return nil, fmt.Errorf("failed to get the latest block: %w", err)
@@ -117,31 +115,44 @@ func (h *PostgresOutputHandler) WriteBlockWithTransactions(ctx context.Context, 
 	}
 
 	// Commit transaction
-	if err := tx.Commit(ctx); err != nil {
+	if err = tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil
 }
 
-func (h *PostgresOutputHandler) initTables() error {
+func (h *PostgresOutputHandler) runMigrations() error {
 	// Create tables if they don't exist
-	slog.Info("Initializing PostgreSQL tables")
-	ctx := context.Background()
-	_, err := h.pool.Exec(ctx, initSQL)
-	return err
-}
+	slog.Info("Running PostgreSQL migrations...")
 
-func (h *PostgresOutputHandler) initFunctions() error {
-	// Create functions if they don't exist
-	slog.Info("Initializing PostgreSQL functions")
-	ctx := context.Background()
-	_, err := h.pool.Exec(ctx, getTxsSQL)
-	return err
+	d, err := iofs.New(migrationsFS, "migrations")
+	if err != nil {
+		return fmt.Errorf("failed to create migration source: %w", err)
+	}
+
+	driver, err := migratepgx.WithInstance(stdlib.OpenDBFromPool(h.pool), &migratepgx.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to create migration driver: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", d, "postgres", driver)
+	if err != nil {
+		return fmt.Errorf("failed to create migration instance: %w", err)
+	}
+	defer m.Close()
+
+	// Run migrations
+	if err = m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	return nil
 }
 
 func (h *PostgresOutputHandler) Close() error {
 	slog.Info("Closing PostgreSQL connection pool")
 	h.pool.Close()
+	slog.Info("PostgreSQL connection pool closed")
 	return nil
 }
