@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS api.transactions_main (
     fee JSONB,
     memo TEXT,
     error TEXT,
-    height TEXT NOT NULL,
-    timestamp TEXT NOT NULL,
+    height BIGINT NOT NULL,
+    timestamp TIMESTAMPTZ NOT NULL,
     proposal_ids TEXT[]
 );
 
@@ -286,8 +286,8 @@ CREATE OR REPLACE FUNCTION api.get_messages_for_address(_address TEXT)
     metadata JSONB,
     fee JSONB,
     memo TEXT,
-    height TEXT,
-    "timestamp" TEXT,
+    height BIGINT,
+    "timestamp" TIMESTAMPTZ,
     error TEXT,
     proposal_ids TEXT[]
   )
