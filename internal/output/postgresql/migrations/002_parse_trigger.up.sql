@@ -183,7 +183,7 @@ BEGIN
   SELECT
     NEW.id,
     -- We make a derived index for nested messages so they don't collide with top level messages
-    (top_level.msg_index - 1) * 1000 + sub_level.sub_index,
+    10000 + ((top_level.msg_index - 1) * 1000) + sub_level.sub_index,
     sub_level.sub_msg
   FROM jsonb_array_elements(NEW.data->'tx'->'body'->'messages')
        WITH ORDINALITY AS top_level(msg, msg_index)
@@ -274,6 +274,45 @@ FOR EACH ROW
 EXECUTE FUNCTION update_message_main();
 
 ---
+-- API function to get transactions and proposals by address
+---
+CREATE OR REPLACE FUNCTION api.get_messages_for_address(_address TEXT)
+  RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  result JSONB;
+BEGIN
+  SELECT jsonb_agg(
+           jsonb_build_object(
+             'id',             m.id,
+             'message_index',  m.message_index,
+             'type',           m.type,
+             'sender',         m.sender,
+             'mentions',       m.mentions,
+             'metadata',       m.metadata,
+             'fee',            t.fee,
+             'memo',           t.memo,
+             'height',         t.height,
+             'timestamp',      t.timestamp,
+             'error',          t.error,
+             'proposal_ids',   t.proposal_ids
+           )
+         )
+  INTO result
+  FROM api.messages_main AS m
+  JOIN api.transactions_main AS t ON m.id = t.id
+  WHERE
+      -- Always return messages where address is the sender
+      m.sender = _address
+    OR
+      -- Return messages where address is mentioned if the transaction was successful
+      (t.error IS NULL AND _address = ANY(m.mentions));
+  RETURN COALESCE(result, '[]'::jsonb);
+END;
+$$;
+
+---
 -- Grant permissions to the web_anon role
 ---
 GRANT SELECT ON api.blocks_raw TO web_anon;
@@ -281,6 +320,7 @@ GRANT SELECT ON api.transactions_main TO web_anon;
 GRANT SELECT ON api.transactions_raw TO web_anon;
 GRANT SELECT ON api.messages_raw TO web_anon;
 GRANT SELECT ON api.messages_main TO web_anon;
+GRANT EXECUTE ON FUNCTION api.get_messages_for_address(TEXT) TO web_anon;
 
 ---
 -- Convert the existing data to the new schema using a staging table and our update triggers
