@@ -277,55 +277,61 @@ EXECUTE FUNCTION update_message_main();
 -- API function to get transactions and proposals by address
 ---
 CREATE OR REPLACE FUNCTION api.get_messages_for_address(_address TEXT)
-  RETURNS JSONB
+  RETURNS TABLE (
+    id VARCHAR(64),
+    message_index BIGINT,
+    type TEXT,
+    sender TEXT,
+    mentions TEXT[],
+    metadata JSONB,
+    fee JSONB,
+    memo TEXT,
+    height TEXT,
+    "timestamp" TEXT,
+    error TEXT,
+    proposal_ids TEXT[]
+  )
 LANGUAGE plpgsql
 AS $$
-DECLARE
-  result JSONB;
 BEGIN
-  SELECT jsonb_agg(
-           jsonb_build_object(
-             'id',             m.id,
-             'message_index',  m.message_index,
-             'type',           m.type,
-             'sender',         m.sender,
-             'mentions',       m.mentions,
-             'metadata',       m.metadata,
-             'fee',            t.fee,
-             'memo',           t.memo,
-             'height',         t.height,
-             'timestamp',      t.timestamp,
-             'error',          t.error,
-             'proposal_ids',   t.proposal_ids
-           )
-         )
-  INTO result
-  FROM api.messages_main AS m
-  JOIN api.transactions_main AS t ON m.id = t.id
-  WHERE
-      -- Always return top-level messages where address is the sender
-      m.sender = _address AND m.message_index < 10000
-    OR
-      -- Return top-level messages where address is mentioned and the transaction was successful
-      (t.error IS NULL AND m.message_index < 10000 AND m.mentions @> ARRAY[_address])
-    OR
-    -- Return nested messages where address is mentioned and the proposal was successfully executed
-    (
-      m.message_index >= 10000
-      AND
-      EXISTS (
-        SELECT 1
-        FROM api.transactions_main tx2 -- The MsgExec transaction
-        JOIN api.messages_main     m2 ON tx2.id = m2.id -- The MsgExec message
-        WHERE
-          tx2.error IS NULL
-          AND m2.type = '/cosmos.group.v1.MsgExec'
-          AND (tx2.proposal_ids && t.proposal_ids)
-      )
-      AND
-      m.mentions @> ARRAY[_address]
-    );
-  RETURN COALESCE(result, '[]'::jsonb);
+  RETURN QUERY
+    SELECT  m.id,
+            m.message_index,
+            m.type,
+            m.sender,
+            m.mentions,
+            m.metadata,
+            t.fee,
+            t.memo,
+            t.height,
+            t.timestamp,
+            t.error,
+            t.proposal_ids
+    FROM api.messages_main AS m
+    JOIN api.transactions_main AS t ON m.id = t.id
+    WHERE
+        -- Always return top-level messages where address is the sender
+        m.sender = _address AND m.message_index < 10000
+      OR
+        -- Return top-level messages where address is mentioned and the transaction was successful
+        (t.error IS NULL AND m.message_index < 10000 AND m.mentions @> ARRAY[_address])
+      OR
+      -- Return nested messages where address is mentioned and the proposal was successfully executed
+      (
+        m.message_index >= 10000
+        AND
+        EXISTS (
+          SELECT 1
+          FROM api.transactions_main tx2 -- The MsgExec transaction
+          JOIN api.messages_main     m2 ON tx2.id = m2.id -- The MsgExec message
+          WHERE
+            tx2.error IS NULL
+            AND m2.type = '/cosmos.group.v1.MsgExec'
+            AND (tx2.proposal_ids && t.proposal_ids)
+        )
+        AND
+        m.mentions @> ARRAY[_address]
+      );
 END;
 $$;
 
