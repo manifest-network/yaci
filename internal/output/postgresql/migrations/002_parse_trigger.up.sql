@@ -307,7 +307,7 @@ BEGIN
       m.sender = _address AND m.message_index < 10000
     OR
       -- Return top-level messages where address is mentioned and the transaction was successful
-      (t.error IS NULL AND m.message_index < 10000 AND _address = ANY(m.mentions))
+      (t.error IS NULL AND m.message_index < 10000 AND m.mentions @> ARRAY[_address])
     OR
     -- Return nested messages where address is mentioned and the proposal was successfully executed
     (
@@ -323,7 +323,7 @@ BEGIN
           AND (tx2.proposal_ids && t.proposal_ids)
       )
       AND
-      _address = ANY(m.mentions)
+      m.mentions @> ARRAY[_address]
     );
   RETURN COALESCE(result, '[]'::jsonb);
 END;
