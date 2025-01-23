@@ -303,11 +303,28 @@ BEGIN
   FROM api.messages_main AS m
   JOIN api.transactions_main AS t ON m.id = t.id
   WHERE
-      -- Always return messages where address is the sender
-      m.sender = _address
+      -- Always return top-level messages where address is the sender
+      m.sender = _address AND m.message_index < 10000
     OR
-      -- Return messages where address is mentioned if the transaction was successful
-      (t.error IS NULL AND _address = ANY(m.mentions));
+      -- Return top-level messages where address is mentioned and the transaction was successful
+      (t.error IS NULL AND m.message_index < 10000 AND _address = ANY(m.mentions))
+    OR
+    -- Return nested messages where address is mentioned and the proposal was successfully executed
+    (
+      m.message_index >= 10000
+      AND
+      EXISTS (
+        SELECT 1
+        FROM api.transactions_main tx2 -- The MsgExec transaction
+        JOIN api.messages_main     m2 ON tx2.id = m2.id -- The MsgExec message
+        WHERE
+          tx2.error IS NULL
+          AND m2.type = '/cosmos.group.v1.MsgExec'
+          AND (tx2.proposal_ids && t.proposal_ids)
+      )
+      AND
+      _address = ANY(m.mentions)
+    );
   RETURN COALESCE(result, '[]'::jsonb);
 END;
 $$;

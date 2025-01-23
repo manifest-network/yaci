@@ -55,5 +55,9 @@ run_proposal "mint_new_denom.json" "$ADDR1" "tx-mint-new-denom-proposal" --from 
 run_proposal "send_new_denom.json" "$ADDR1" "tx-send-new-denom-proposal" --from $KEY
 run_proposal "update_group_members.json" "$ADDR1" "tx-update-group-members-proposal" --from $KEY
 
+### Error transactions
+run_tx tx bank send $ADDR2 $ADDR1 100000000001009692${DENOM} --from $KEY --note "tx-send-addr2-to-addr1-error"
+run_proposal "send_error.json" "$ADDR1" "tx-send-proposal-error" --from $KEY
+
 echo "Total transactions: $TX_COUNT"
 echo "${TX_COUNT}" > "${TX_COUNT_PATH}"

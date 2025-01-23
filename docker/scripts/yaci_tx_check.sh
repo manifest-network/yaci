@@ -48,9 +48,9 @@ function check_addr_txs() {
 
 # Address-specific configurations
 declare -A ADDRESS_EXPECTED_TXS=(
-  ["${ADDR1}"]="25"
-  ["${ADDR2}"]="10"
-  ["${USER_GROUP_ADDRESS}"]="9"
+  ["${ADDR1}"]="28"
+  ["${ADDR2}"]="12"
+  ["${USER_GROUP_ADDRESS}"]="10"
   ["${POA_ADMIN_ADDRESS}"]="4"
 )
 
@@ -80,6 +80,9 @@ declare -a ADDRESS1_TX_CHECKS=(
   "tx-update-group-members-proposal-submit:false"
   "tx-update-group-members-proposal-vote:false"
   "tx-update-group-members-proposal-exec:false"
+  "tx-send-proposal-error-submit:false"
+  "tx-send-proposal-error-vote:false"
+  "tx-send-proposal-error-exec:false"
 )
 
 declare -a ADDRESS2_TX_CHECKS=(
@@ -93,6 +96,8 @@ declare -a ADDRESS2_TX_CHECKS=(
   "tx-send-new-denom-proposal-submit:true"
   "tx-update-group-members-proposal-submit:false"
   "tx-update-group-members-proposal-submit:true"
+  "tx-send-addr2-to-addr1-error:false"
+  "tx-send-proposal-error-submit:false"
 )
 
 declare -a USER_GROUP_ADDRESS_TX_CHECKS=(
@@ -105,6 +110,7 @@ declare -a USER_GROUP_ADDRESS_TX_CHECKS=(
   "tx-send-new-denom-proposal-submit:true"
   "tx-update-group-members-proposal-submit:false"
   "tx-update-group-members-proposal-submit:true"
+  "tx-send-proposal-error-submit:false"
 )
 
 declare -a POA_ADMIN_ADDRESS_TX_CHECKS=(
