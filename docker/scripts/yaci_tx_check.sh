@@ -50,8 +50,8 @@ function check_addr_txs() {
 declare -A ADDRESS_EXPECTED_TXS=(
   ["${ADDR1}"]="28"
   ["${ADDR2}"]="12"
-  ["${USER_GROUP_ADDRESS}"]="10"
-  ["${POA_ADMIN_ADDRESS}"]="4"
+  ["${USER_GROUP_ADDRESS}"]="15"
+  ["${POA_ADMIN_ADDRESS}"]="5"
 )
 
 declare -a ADDRESS1_TX_CHECKS=(
@@ -104,13 +104,18 @@ declare -a USER_GROUP_ADDRESS_TX_CHECKS=(
   "tx-send-to-user-group:false"
   "tx-create-denom-proposal-submit:false"
   "tx-create-denom-proposal-submit:true"
+  "tx-create-denom-proposal-exec:false"
   "tx-mint-new-denom-proposal-submit:false"
   "tx-mint-new-denom-proposal-submit:true"
+  "tx-mint-new-denom-proposal-exec:false"
   "tx-send-new-denom-proposal-submit:false"
   "tx-send-new-denom-proposal-submit:true"
+  "tx-send-new-denom-proposal-exec:false"
   "tx-update-group-members-proposal-submit:false"
   "tx-update-group-members-proposal-submit:true"
+  "tx-update-group-members-proposal-exec:false"
   "tx-send-proposal-error-submit:false"
+  "tx-send-proposal-error-exec:false"
 )
 
 declare -a POA_ADMIN_ADDRESS_TX_CHECKS=(
@@ -118,6 +123,7 @@ declare -a POA_ADMIN_ADDRESS_TX_CHECKS=(
   "tx-multi-send-to-poa-admin:false"
   "tx-payout-proposal-submit:false"
   "tx-payout-proposal-submit:true"
+  "tx-payout-proposal-exec:false"
 )
 
 declare -A ADDRESS_TX_CHECKS=(

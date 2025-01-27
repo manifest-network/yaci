@@ -331,6 +331,22 @@ BEGIN
         )
         AND
         m.mentions @> ARRAY[_address]
+      )
+      OR
+      -- Return MsgExec related to the group policy address
+      (
+        m.type = '/cosmos.group.v1.MsgExec'
+        AND
+        EXISTS (
+         SELECT 1
+         FROM api.transactions_main tx2 -- The MsgSubmitProposal transaction
+         JOIN api.messages_main m2 ON tx2.id = m2.id -- The MsgSubmitProposal message
+         WHERE
+         tx2.error IS NULL
+         AND tx2.proposal_ids && t.proposal_ids
+         AND m2.type = '/cosmos.group.v1.MsgSubmitProposal'
+         AND m2.metadata->>'groupPolicyAddress' = _address
+        )
       );
 END;
 $$;
