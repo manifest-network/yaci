@@ -388,4 +388,9 @@ DROP TABLE api.transactions_staging;
 CREATE INDEX IF NOT EXISTS message_main_mentions_idx ON api.messages_main USING GIN (mentions);
 CREATE INDEX IF NOT EXISTS message_main_sender_idx ON api.messages_main(sender);
 
+---
+-- Drop the old function
+---
+DROP FUNCTION IF EXISTS api.get_address_filtered_transactions_and_successful_proposals(TEXT);
+
 COMMIT;

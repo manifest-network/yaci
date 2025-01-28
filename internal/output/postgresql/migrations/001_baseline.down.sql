@@ -6,11 +6,11 @@ REVOKE SELECT ON api.transactions FROM web_anon;
 REVOKE SELECT ON api.blocks FROM web_anon;
 REVOKE USAGE ON SCHEMA api FROM web_anon;
 
-DROP ROLE IF EXISTS web_anon;
-
 DROP TABLE IF EXISTS api.transactions;
 DROP TABLE IF EXISTS api.blocks;
 
 DROP SCHEMA IF EXISTS api CASCADE;
+
+DROP ROLE IF EXISTS web_anon;
 
 COMMIT;
