@@ -12,7 +12,7 @@ Off-chain indexing of block & transaction data.
 
 ## Requirements
 
-- Go 1.23.1
+- Go 1.23.5
 - Docker & Docker Compose (optional)
 - CosmosSDK >= 0.50 (chain to index)
 
@@ -78,12 +78,37 @@ The PostgreSQL database has the following schema:
 
 ```mermaid
 erDiagram
-  "api.blocks" {
-    serial id PK
+  "api.transactions_main" {
+    varchar(64) id
+    jsonb fee
+    text memo
+    text error
+    string height
+    text timestamp
+    text[] proposal_id
+  }
+  "api.messages_raw" {
+    varchar(64) id
+    bigint message_index
     jsonb data
   }
-  "api.transactions" {
-    varchar(64) id PK
+  "api.messages_main" {
+    varchar(64) id
+    bigint message_index
+    text type
+    text sender
+    text[] mentions
+    jsonb metadata
+  }
+  "api.transactions_raw" {
+    varchar(64) id
+    jsonb data
+  }
+  "api.transactions_raw" ||--|| "api.transactions_main" : "trigger insert/update"
+  "api.transactions_raw" ||--o{ "api.messages_raw": "trigger insert/update"
+  "api.messages_raw" ||--|| "api.messages_main" : "trigger insert/update"
+  "api.blocks_raw" {
+    serial id
     jsonb data
   }
 ```
@@ -111,7 +136,7 @@ This command will connect to the gRPC server running on `localhost:9090`, contin
 
 The following PostgreSQL functions are available:
 
-- `get_address_filtered_transactions_and_successful_proposals(address)`: Returns filtered transactions and successful proposals for a given address.
+- `get_messages_for_address(_address)`: Returns relevant transactions for a given address.
 
 ## Configuration
 
