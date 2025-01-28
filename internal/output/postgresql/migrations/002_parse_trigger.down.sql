@@ -1,29 +1,33 @@
 BEGIN;
 
--- Create the schema if it doesn't exist
-CREATE SCHEMA IF NOT EXISTS api;
+DROP INDEX IF EXISTS api.message_main_mentions_idx;
+DROP INDEX IF EXISTS api.message_main_sender_idx;
 
--- Create the tables if they don't exist
-CREATE TABLE IF NOT EXISTS api.blocks (
-    id SERIAL PRIMARY KEY,
-    data JSONB NOT NULL
-);
-CREATE TABLE IF NOT EXISTS api.transactions (
-    id VARCHAR(64) PRIMARY KEY,
-    data JSONB NOT NULL
-);
+REVOKE EXECUTE ON FUNCTION api.get_messages_for_address(TEXT) FROM web_anon;
+REVOKE SELECT ON api.messages_main FROM web_anon;
+REVOKE SELECT ON api.messages_raw FROM web_anon;
+REVOKE SELECT ON api.transactions_raw FROM web_anon;
+REVOKE SELECT ON api.transactions_main FROM web_anon;
+REVOKE SELECT ON api.blocks_raw FROM web_anon;
 
--- Create a role for anonymous web access if it doesn't exist
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'web_anon') THEN
-    CREATE ROLE web_anon NOLOGIN;
-  END IF;
-END
-$$;
+DROP FUNCTION IF EXISTS api.get_messages_for_address(TEXT);
 
--- Grant access to the web_anon role. Will succeed even if the role already has access.
-GRANT USAGE ON SCHEMA api TO web_anon;
+DROP TRIGGER IF EXISTS new_message_update ON api.messages_raw;
+DROP TRIGGER IF EXISTS new_transaction_update ON api.transactions_raw;
+
+DROP FUNCTION IF EXISTS update_message_main();
+DROP FUNCTION IF EXISTS update_transaction_main();
+DROP FUNCTION IF EXISTS extract_proposal_ids(JSONB);
+DROP FUNCTION IF EXISTS extract_proposal_failure_logs(json_data JSONB);
+DROP FUNCTION IF EXISTS extract_metadata(JSONB);
+
+DROP TABLE api.messages_main;
+DROP TABLE api.messages_raw;
+DROP TABLE api.transactions_main;
+
+ALTER TABLE api.transactions_raw RENAME TO transactions;
+ALTER TABLE api.blocks_raw RENAME TO blocks;
+
 GRANT SELECT ON api.blocks TO web_anon;
 GRANT SELECT ON api.transactions TO web_anon;
 

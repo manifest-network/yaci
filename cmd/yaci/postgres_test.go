@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	RestTxEndpoint    = fmt.Sprintf("http://%s/transactions", RestEndpoint)
-	RestBlockEndpoint = fmt.Sprintf("http://%s/blocks", RestEndpoint)
+	RestTxEndpoint    = fmt.Sprintf("http://%s/transactions_raw", RestEndpoint)
+	RestBlockEndpoint = fmt.Sprintf("http://%s/blocks_raw", RestEndpoint)
 )
 
 func TestPostgres(t *testing.T) {
@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 25 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 25)
+		// The number of transactions is 29 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 29)
 	})
 }
 
@@ -126,7 +126,7 @@ func testReindex(t *testing.T) {
 
 		// Update the data field of block 3 to an empty JSON object
 		_, err := docker.RunE(t, "postgres", &docker.RunOptions{
-			Command:              []string{"psql", "-h", "localhost", "-U", "postgres", "-c", "UPDATE api.blocks SET data = '{}' WHERE id = 3"},
+			Command:              []string{"psql", "-h", "localhost", "-U", "postgres", "-c", "UPDATE api.blocks_raw SET data = '{}' WHERE id = 3"},
 			EnvironmentVariables: []string{"PGPASSWORD=foobar"},
 			Detach:               false,
 			Remove:               true,

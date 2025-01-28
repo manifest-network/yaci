@@ -17,7 +17,7 @@ else
 fi
 
 # Query the PostgREST API to get the total number of transactions
-output=$(curl http://${POSTGREST_HOST}:3000/transactions -I \
+output=$(curl http://${POSTGREST_HOST}:3000/transactions_raw -I \
   -H "Range-Unit: items" \
   -H "Range: 0-0" \
   -H "Prefer: count=exact")

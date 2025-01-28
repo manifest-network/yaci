@@ -2,20 +2,21 @@
   "group_policy_address": "${USER_GROUP_ADDRESS}",
   "messages": [
     {
-      "@type": "/cosmos.bank.v1beta1.MsgSend",
-      "fromAddress": "${USER_GROUP_ADDRESS}",
-      "toAddress": "${ADDR2}",
-      "amount": [
+      "@type": "/cosmos.group.v1.MsgUpdateGroupMembers",
+      "groupId": "2",
+      "admin": "${USER_GROUP_ADDRESS}",
+      "memberUpdates": [
         {
-          "denom": "factory/${USER_GROUP_ADDRESS}/utool",
-          "amount": "1000000"
+          "address": "${ADDR2}",
+          "weight": "0",
+          "metadata": "user2"
         }
       ]
     }
   ],
   "metadata": "",
-  "title": "Send 1M utool to user 2",
-  "summary": "This proposal will send 1 TOOL to ${ADDR2}",
+  "title": "Update group members",
+  "summary": "This proposal will update the group members",
   "proposers": [
     "${ADDR1}"
   ]
