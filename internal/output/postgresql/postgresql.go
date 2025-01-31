@@ -60,11 +60,28 @@ func (h *PostgresOutputHandler) GetLatestBlock(ctx context.Context) (*models.Blo
 	return &block, nil
 }
 
+func (h *PostgresOutputHandler) GetEarliestBlock(ctx context.Context) (*models.Block, error) {
+	var block models.Block
+	err := h.pool.QueryRow(ctx, `
+		SELECT id
+		FROM api.blocks_raw
+		ORDER BY id ASC
+		LIMIT 1
+	`).Scan(&block.ID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil // No rows found
+		}
+		return nil, fmt.Errorf("failed to get the earliest block: %w", err)
+	}
+	return &block, nil
+}
+
 func (h *PostgresOutputHandler) GetMissingBlockIds(ctx context.Context) ([]uint64, error) {
 	rows, err := h.pool.Query(ctx, `
 		SELECT s.id
 		FROM generate_series(
-				 1,
+				 (SELECT MIN(id) FROM api.blocks_raw),
 				 (SELECT MAX(id) FROM api.blocks_raw)
 			 ) AS s(id)
 		LEFT JOIN api.blocks_raw t ON t.id = s.id

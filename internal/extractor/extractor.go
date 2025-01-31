@@ -100,11 +100,22 @@ func initializeGRPC(ctx context.Context, address string, cfg config.ExtractConfi
 func setBlockRange(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, outputHandler output.OutputHandler, cfg *config.ExtractConfig) error {
 	if cfg.ReIndex {
 		slog.Info("Reindexing entire database...")
+		// TODO: Get the earliest block from the gRPC server
+		// See https://github.com/liftedinit/yaci/issues/28
 		cfg.BlockStart = 1
+		earliestLocalBlock, err := outputHandler.GetEarliestBlock(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get the earliest local block: %w", err)
+		}
+		if earliestLocalBlock != nil {
+			cfg.BlockStart = earliestLocalBlock.ID
+		}
 		cfg.BlockStop = 0
 	}
 
 	if cfg.BlockStart == 0 {
+		// TODO: Get the earliest block from the gRPC server
+		// See https://github.com/liftedinit/yaci/issues/28
 		cfg.BlockStart = 1
 		latestLocalBlock, err := outputHandler.GetLatestBlock(ctx)
 		if err != nil {
