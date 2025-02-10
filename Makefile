@@ -1,4 +1,4 @@
-VERSION = v0.3.0
+VERSION = v0.3.1
 
 #### Build ####
 build: ## Build the binary
