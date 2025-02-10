@@ -1,6 +1,6 @@
 module github.com/liftedinit/yaci
 
-go 1.23.5
+go 1.23.6
 
 require (
 	github.com/go-resty/resty/v2 v2.16.4
