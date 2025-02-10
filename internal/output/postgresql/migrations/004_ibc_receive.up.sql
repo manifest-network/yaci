@@ -46,6 +46,9 @@ BEGIN
         decoded_text := convert_from(decoded_bytes, 'UTF8');
         decoded_json := decoded_text::jsonb;
         metadata := metadata || jsonb_build_object('decodedData', decoded_json);
+        IF decoded_json ? 'sender' THEN
+          sender := decoded_json->>'sender';
+        END IF;
         new_addresses := extract_addresses(decoded_json);
         SELECT array_agg(DISTINCT addr) INTO mentions
         FROM unnest(mentions || new_addresses) AS addr;
