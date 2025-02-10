@@ -13,6 +13,9 @@ type OutputHandler interface {
 	// GetLatestBlock returns the latest block from the output.
 	GetLatestBlock(ctx context.Context) (*models.Block, error)
 
+	// GetEarliestBlock returns the earliest block from the output.
+	GetEarliestBlock(ctx context.Context) (*models.Block, error)
+
 	// GetMissingBlockIds returns the missing block IDs from the output.
 	GetMissingBlockIds(ctx context.Context) ([]uint64, error)
 
