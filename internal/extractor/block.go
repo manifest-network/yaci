@@ -96,7 +96,6 @@ func processBlocks(ctx context.Context, grpcConn *grpc.ClientConn, resolver *ref
 		})
 	}
 
-	// Wait for all goroutines to complete.
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("error while fetching blocks: %w", err)
 	}
