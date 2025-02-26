@@ -1,9 +1,10 @@
-VERSION = v0.3.1
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_FLAGS := -ldflags "-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)"
 
 #### Build ####
 build: ## Build the binary
-	@echo "--> Building development binary"
-	@go build -ldflags="-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -o bin/yaci ./main.go
+	@echo "--> Building development binary (version: $(VERSION))"
+	@go build $(BUILD_FLAGS) -o bin/yaci ./main.go
 
 .PHONY: build
 
