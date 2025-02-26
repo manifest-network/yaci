@@ -6,14 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"github.com/liftedinit/yaci/internal/utils"
+	"github.com/schollz/progressbar/v3"
 
 	"github.com/liftedinit/yaci/internal/models"
 	"github.com/liftedinit/yaci/internal/output"
@@ -26,51 +27,78 @@ const (
 )
 
 func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint) error {
-	if start == stop {
-		slog.Info("Extracting blocks and transactions", "height", start)
-
-	} else {
+	displayProgress := start != stop
+	if displayProgress {
 		slog.Info("Extracting blocks and transactions", "range", fmt.Sprintf("[%d, %d]", start, stop))
+	} else {
+		slog.Info("Extracting blocks and transactions", "height", start)
 	}
-
-	sem := make(chan struct{}, maxConcurrency)
-	var wg sync.WaitGroup
-	errCh := make(chan error, stop-start+1)
-
-	for i := start; i <= stop; i++ {
-		select {
-		case <-ctx.Done():
-			return nil
-		default:
-			sem <- struct{}{}
-			wg.Add(1)
-
-			blockHeight := i
-			if blockHeight%5000 == 0 {
-				slog.Info("Still processing blocks...", "height", blockHeight)
-			}
-			go func() {
-				defer wg.Done()
-				defer func() { <-sem }()
-
-				err := ProcessSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, maxRetries)
-				if err != nil {
-					if !errors.Is(err, context.Canceled) {
-						slog.Error("Failed to process block after 3 retries", "height", blockHeight, "error", err)
-					}
-					errCh <- fmt.Errorf("failed to process block %d: %w", blockHeight, err)
-				}
-			}()
+	var bar *progressbar.ProgressBar
+	if displayProgress {
+		bar = progressbar.NewOptions64(
+			int64(stop-start+1),
+			progressbar.OptionClearOnFinish(),
+			progressbar.OptionSetDescription("Processing blocks..."),
+			progressbar.OptionShowCount(),
+			progressbar.OptionShowIts(),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "=",
+				SaucerHead:    ">",
+				SaucerPadding: " ",
+				BarStart:      "[",
+				BarEnd:        "]",
+			}),
+		)
+		if err := bar.RenderBlank(); err != nil {
+			return fmt.Errorf("failed to render progress bar: %w", err)
 		}
 	}
 
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
-		return fmt.Errorf("error while fetching blocks: %w", err)
+	if err := processBlocks(ctx, grpcConn, resolver, start, stop, outputHandler, maxConcurrency, maxRetries, bar); err != nil {
+		return fmt.Errorf("failed to process blocks and transactions: %w", err)
 	}
 
+	if bar != nil {
+		if err := bar.Finish(); err != nil {
+			return fmt.Errorf("failed to finish progress bar: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func processBlocks(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint, bar *progressbar.ProgressBar) error {
+	eg, ctx := errgroup.WithContext(ctx)
+	sem := make(chan struct{}, maxConcurrency)
+
+	for height := start; height <= stop; height++ {
+		blockHeight := height
+		sem <- struct{}{}
+
+		eg.Go(func() error {
+			defer func() { <-sem }()
+
+			err := ProcessSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, maxRetries)
+			if err != nil {
+				if !errors.Is(err, context.Canceled) {
+					slog.Error("Failed to process block", "height", blockHeight, "error", err, "retries", maxRetries)
+				}
+				return fmt.Errorf("failed to process block %d: %w", blockHeight, err)
+			}
+
+			if bar != nil {
+				if err := bar.Add(1); err != nil {
+					slog.Warn("Failed to update progress bar", "error", err)
+				}
+			}
+
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("error while fetching blocks: %w", err)
+	}
 	return nil
 }
 
