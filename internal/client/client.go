@@ -17,9 +17,10 @@ var keepaliveParams = keepalive.ClientParameters{
 	PermitWithoutStream: true,
 }
 
-func NewGRPCClients(ctx context.Context, address string, insecure bool) *grpc.ClientConn {
+func NewGRPCClients(ctx context.Context, address string, insecure bool, maxCallRecvMsgSize int) *grpc.ClientConn {
 	var opts []grpc.DialOption
 	opts = append(opts, grpc.WithKeepaliveParams(keepaliveParams))
+	opts = append(opts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(maxCallRecvMsgSize)))
 	if insecure {
 		opts = append(opts, grpc.WithInsecure())
 	} else {
