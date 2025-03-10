@@ -15,6 +15,7 @@ type ExtractConfig struct {
 	LiveMonitoring bool
 	Insecure       bool
 	ReIndex        bool
+	MaxRecvMsgSize int
 }
 
 func (c ExtractConfig) Validate() error {
@@ -34,5 +35,6 @@ func LoadExtractConfigFromCLI() ExtractConfig {
 		LiveMonitoring: viper.GetBool("live"),
 		Insecure:       viper.GetBool("insecure"),
 		ReIndex:        viper.GetBool("reindex"),
+		MaxRecvMsgSize: viper.GetInt("max-recv-msg-size"),
 	}
 }

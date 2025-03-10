@@ -22,13 +22,11 @@ func init() {
 	ExtractCmd.PersistentFlags().UintP("block-time", "t", 2, "Block time in seconds")
 	ExtractCmd.PersistentFlags().UintP("max-retries", "r", 3, "Maximum number of retries for failed block processing")
 	ExtractCmd.PersistentFlags().UintP("max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
+	ExtractCmd.PersistentFlags().IntP("max-recv-msg-size", "m", 4194304, "Maximum gRPC message size in bytes (advanced)")
 
 	if err := viper.BindPFlags(ExtractCmd.PersistentFlags()); err != nil {
 		slog.Error("Failed to bind ExtractCmd flags", "error", err)
 	}
 
-	// TODO: Re-add JSON and TSV commands in the future
-	//ExtractCmd.AddCommand(jsonCmd)
-	//ExtractCmd.AddCommand(tsvCmd)
 	ExtractCmd.AddCommand(PostgresCmd)
 }

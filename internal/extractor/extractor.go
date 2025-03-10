@@ -75,7 +75,7 @@ func handleInterrupt(cancel context.CancelFunc) {
 // initializeGRPC initializes the gRPC client, fetches protocol buffer descriptors & creates the PB resolver.
 func initializeGRPC(ctx context.Context, address string, cfg config.ExtractConfig) (*grpc.ClientConn, *reflection.CustomResolver, error) {
 	slog.Info("Initializing gRPC client pool...")
-	grpcConn := client.NewGRPCClients(ctx, address, cfg.Insecure)
+	grpcConn := client.NewGRPCClients(ctx, address, cfg.Insecure, cfg.MaxRecvMsgSize)
 
 	slog.Info("Fetching protocol buffer descriptors from gRPC server... This may take a while.")
 	descriptors, err := reflection.FetchAllDescriptors(ctx, grpcConn, cfg.MaxRetries)
