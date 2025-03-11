@@ -19,7 +19,7 @@ Off-chain indexing of block & transaction data.
 ## Features
 
 - Ability to extract block and transaction chain data to PostgreSQL.
-- Supports server reflection; no need to specify the proto file.
+- Leverages gRPC server reflection; no need to specify the proto file.
 - (Nested) `Any` type are properly decoded.
 - Live monitoring of the blockchain.
 - Batch extraction of data.
@@ -42,7 +42,9 @@ yaci [command] [address] [flags]
 
 ## Commands
 
+- `completion` - Generate the autocompletion script for the specified shell.
 - `extract` - Extracts blockchain data to various output format.
+- `help` - Help about any command.
 - `version` - Prints the version of the tool. 
 
 ## Global Flags
@@ -65,6 +67,7 @@ The following flags are available for all `extract` subcommand:
 - `--reindex` - Reindex the entire database from block 1 (default: false)'
 - `-r`, `--max-retries` - The maximum number of retries to connect to the gRPC server (default: 3)
 - `-c`, `--max-concurrency` - The maximum number of concurrent requests to the gRPC server (default: 100)
+- `-m`, `--max-recv-msg-size` - The maximum gRPC message size, in bytes, the client can receive (default: 4194304 (4MB))'
 
 ### Subcommands
 
@@ -141,7 +144,6 @@ The following PostgreSQL functions are available:
 ## Configuration
 
 The `yaci` tool parameters can be configured from the following sources
-
 
 - Environment variables (prefixed with `YACI_`)
 - Configuration file (`config.yaml`, `config.json`, `config.toml`, `config.hcl`, [~~`config.env`~~](https://github.com/liftedinit/yaci/issues/15) )
