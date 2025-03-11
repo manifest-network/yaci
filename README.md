@@ -16,6 +16,9 @@ Off-chain indexing of block & transaction data.
 - Docker & Docker Compose (optional)
 - CosmosSDK >= 0.50 (chain to index)
 
+> [IMPORTANT!]
+> When indexing an existing blockchain with pruning enabled, start the indexer from a recent block height that has not been pruned.
+
 ## Features
 
 - Ability to extract block and transaction chain data to PostgreSQL.
