@@ -5,6 +5,8 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/liftedinit/yaci/internal/metrics"
 	"github.com/liftedinit/yaci/internal/output/postgresql"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -36,6 +38,12 @@ var PostgresRunE = func(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create PostgreSQL output handler: %w", err)
 	}
 	defer outputHandler.Close()
+
+	slog.Info("Starting Prometheus metrics server...")
+	db := stdlib.OpenDBFromPool(outputHandler.GetPool())
+	if err := metrics.CreateMetricsServer(db); err != nil {
+		return fmt.Errorf("failed to start metrics server: %w", err)
+	}
 
 	return extractor.Extract(args[0], outputHandler, extractConfig)
 }

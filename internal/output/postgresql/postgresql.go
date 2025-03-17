@@ -25,6 +25,10 @@ type PostgresOutputHandler struct {
 	pool *pgxpool.Pool
 }
 
+func (h *PostgresOutputHandler) GetPool() *pgxpool.Pool {
+	return h.pool
+}
+
 func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error) {
 	pool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
