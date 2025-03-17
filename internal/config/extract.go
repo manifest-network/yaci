@@ -16,6 +16,7 @@ type ExtractConfig struct {
 	Insecure       bool
 	ReIndex        bool
 	MaxRecvMsgSize int
+	Prometheus     bool
 }
 
 func (c ExtractConfig) Validate() error {
@@ -36,5 +37,6 @@ func LoadExtractConfigFromCLI() ExtractConfig {
 		Insecure:       viper.GetBool("insecure"),
 		ReIndex:        viper.GetBool("reindex"),
 		MaxRecvMsgSize: viper.GetInt("max-recv-msg-size"),
+		Prometheus:     viper.GetBool("prometheus"),
 	}
 }

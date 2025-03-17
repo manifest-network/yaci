@@ -39,10 +39,12 @@ var PostgresRunE = func(cmd *cobra.Command, args []string) error {
 	}
 	defer outputHandler.Close()
 
-	slog.Info("Starting Prometheus metrics server...")
-	db := stdlib.OpenDBFromPool(outputHandler.GetPool())
-	if err := metrics.CreateMetricsServer(db); err != nil {
-		return fmt.Errorf("failed to start metrics server: %w", err)
+	if extractConfig.Prometheus {
+		slog.Info("Starting Prometheus metrics server...")
+		db := stdlib.OpenDBFromPool(outputHandler.GetPool())
+		if err := metrics.CreateMetricsServer(db); err != nil {
+			return fmt.Errorf("failed to start metrics server: %w", err)
+		}
 	}
 
 	return extractor.Extract(args[0], outputHandler, extractConfig)

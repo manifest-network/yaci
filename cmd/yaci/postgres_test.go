@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 29 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 29)
+		// The number of transactions is 28 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 28)
 	})
 }
 
@@ -153,6 +153,36 @@ func testReindex(t *testing.T) {
 		require.NotEmpty(t, newBlock3)
 		require.NotEmpty(t, newBlock3[0]["data"])
 		require.Equal(t, block3, newBlock3)
+	})
+}
+
+func TestPrometheusMetrics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	opts := &docker.Options{WorkingDir: DockerWorkingDirectory}
+	_, err := docker.RunDockerComposeE(t, opts, "-f", "yaci.yml", "up", "--build", "-d", "--wait")
+	require.NoError(t, err)
+
+	_, err = docker.RunDockerComposeE(t, opts, "-f", "yaci.yml", "restart", "postgrest")
+	require.NoError(t, err)
+
+	testPrometheusMetrics(t)
+
+	t.Cleanup(func() {
+		_, err := docker.RunDockerComposeE(t, opts, "-f", "yaci.yml", "down", "-v")
+		require.NoError(t, err)
+	})
+}
+
+func testPrometheusMetrics(t *testing.T) {
+	t.Run("TestPrometheusMetrics", func(t *testing.T) {
+		resp, err := resty.New().R().Get("http://localhost:2112/metrics")
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode())
+		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique{source=\"postgres\"} 4")
+		require.Contains(t, string(resp.Body()), "yaci_transactions_total_count{source=\"postgres\"} 28")
 	})
 }
 

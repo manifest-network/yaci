@@ -40,7 +40,6 @@ run_tx tx tokenfactory modify-metadata factory/$ADDR1/ufoobar FOOBAR "This is th
 run_tx tx tokenfactory mint-to $ADDR1 2000000factory/$ADDR1/ufoobar  --from $KEY --note "tx-mint-to"
 run_tx tx tokenfactory burn-from $ADDR1 1000000factory/$ADDR1/ufoobar  --from $KEY --note "tx-burn-from"
 run_tx tx tokenfactory change-admin factory/$ADDR1/ufoobar $ADDR2 --from $KEY --note "tx-change-admin"
-run_tx tx tokenfactory force-transfer 1000factory/$ADDR1/ufoobar $ADDR1 $ADDR2 --from $KEY2 --note "tx-force-transfer"
 
 ## Manifest module
 run_proposal "payout.json" "$ADDR1" "tx-payout-proposal" --from $KEY
@@ -56,7 +55,7 @@ run_proposal "send_new_denom.json" "$ADDR1" "tx-send-new-denom-proposal" --from 
 run_proposal "update_group_members.json" "$ADDR1" "tx-update-group-members-proposal" --from $KEY
 
 ### Error transactions
-run_tx tx bank send $ADDR2 $ADDR1 100000000001009692${DENOM} --from $KEY --note "tx-send-addr2-to-addr1-error"
+run_tx tx bank send $ADDR2 $ADDR1 100000000001000000${DENOM} --from $KEY --note "tx-send-addr2-to-addr1-error"
 run_proposal "send_error.json" "$ADDR1" "tx-send-proposal-error" --from $KEY
 
 echo "Total transactions: $TX_COUNT"

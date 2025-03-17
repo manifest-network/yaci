@@ -23,6 +23,7 @@ func init() {
 	ExtractCmd.PersistentFlags().UintP("max-retries", "r", 3, "Maximum number of retries for failed block processing")
 	ExtractCmd.PersistentFlags().UintP("max-concurrency", "c", 100, "Maximum block retrieval concurrency (advanced)")
 	ExtractCmd.PersistentFlags().IntP("max-recv-msg-size", "m", 4194304, "Maximum gRPC message size in bytes (advanced)")
+	ExtractCmd.PersistentFlags().Bool("prometheus", false, "Enable Prometheus metrics server")
 
 	if err := viper.BindPFlags(ExtractCmd.PersistentFlags()); err != nil {
 		slog.Error("Failed to bind ExtractCmd flags", "error", err)

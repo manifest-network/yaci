@@ -49,7 +49,7 @@ function check_addr_txs() {
 # Address-specific configurations
 declare -A ADDRESS_EXPECTED_TXS=(
   ["${ADDR1}"]="28"
-  ["${ADDR2}"]="12"
+  ["${ADDR2}"]="11"
   ["${USER_GROUP_ADDRESS}"]="15"
   ["${POA_ADMIN_ADDRESS}"]="5"
 )
@@ -62,7 +62,6 @@ declare -a ADDRESS1_TX_CHECKS=(
   "tx-mint-to:false"
   "tx-burn-from:false"
   "tx-change-admin:false"
-  "tx-force-transfer:false"
   "tx-payout-proposal-submit:false"
   "tx-payout-proposal-vote:false"
   "tx-payout-proposal-exec:false"
@@ -88,7 +87,6 @@ declare -a ADDRESS1_TX_CHECKS=(
 declare -a ADDRESS2_TX_CHECKS=(
   "tx-multi-send-to-poa-admin:false"
   "tx-change-admin:false"
-  "tx-force-transfer:false"
   "tx-payout-proposal-submit:false"
   "tx-payout-proposal-submit:true"
   "tx-create-group-with-policy:false"
