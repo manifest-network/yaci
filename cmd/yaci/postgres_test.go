@@ -181,7 +181,8 @@ func testPrometheusMetrics(t *testing.T) {
 		resp, err := resty.New().R().Get("http://localhost:2112/metrics")
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.StatusCode())
-		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique{source=\"postgres\"} 4")
+		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_user{source=\"postgres\"} 2")
+		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_group{source=\"postgres\"} 2")
 		require.Contains(t, string(resp.Body()), "yaci_transactions_total_count{source=\"postgres\"} 28")
 	})
 }

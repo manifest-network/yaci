@@ -6,6 +6,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// TotalTransactionCountCollector is a Prometheus collector that collects the total number of transactions
+// Nested messages, which are messages that are sent within other messages, are not counted
 type TotalTransactionCountCollector struct {
 	db           *sql.DB
 	totalTxCount *prometheus.Desc
