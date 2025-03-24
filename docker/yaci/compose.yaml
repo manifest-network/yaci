@@ -1,27 +1,29 @@
 # This is a docker-compose file that will start the YACI service.
-# The base infrastructure required by the YACI service is defined in `infra.yml`.
+# The base infrastructure required by the YACI service is defined in `compose.yaml`.
 include:
-  - infra.yml
+  - ../infra/compose.yaml
+
 services:
   yaci:
     build:
-      context: ..
+      context: ../..
       dockerfile: Dockerfile
     volumes:
-      - tx-count:/tx-count:ro # From infra.yml
+      - tx-count:/tx-count:ro # From compose.yaml
       - ./scripts/yaci_healthcheck.sh:/usr/local/bin/yaci_healthcheck.sh:ro
-    command: ["extract", "postgres", "manifest-ledger:${GRPC}", "-p", "postgres://postgres:foobar@db:5432/postgres", "--live", "-k", "--prometheus"]
+    command: ["extract", "postgres", "manifest-ledger:9090", "-p", "postgres://postgres:foobar@db:5432/postgres", "--live", "-k", "--enable-prometheus"]
     ports:
       - "2112:2112"
-    env_file: .env
+    env_file: ../.env
     depends_on:
       db:
         condition: service_healthy
       manifest-ledger-tx:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD", "/usr/local/bin/yaci_healthcheck.sh"]
-      interval: 10s
+      test: ["CMD", "curl", "http://localhost:2112"]
+      start_period: 40s
+      interval: 20s
       timeout: 5s
       retries: 5
 
@@ -29,12 +31,12 @@ services:
   yaci_tx_check:
     restart: "no"
     build:
-      context: .
+      context: ..
       dockerfile: Dockerfile.base
     volumes:
         - ./scripts/yaci_tx_check.sh:/usr/local/bin/yaci_tx_check.sh:ro
     entrypoint: ["/bin/bash", "-c"]
-    env_file: .env
+    env_file: ../.env
     command: /usr/local/bin/yaci_tx_check.sh
     depends_on:
         yaci:
