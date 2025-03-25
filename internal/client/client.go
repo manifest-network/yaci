@@ -41,7 +41,7 @@ func NewGRPCClient(ctx context.Context, address string, insecure bool, maxCallRe
 		return nil, fmt.Errorf("failed to build descriptor set: %w", err)
 	}
 
-	resolver := reflection.NewCustomResolver(files, conn, ctx, 3)
+	resolver := reflection.NewCustomResolver(ctx, files, conn, 3)
 
 	return &GRPCClient{
 		Ctx:      ctx,

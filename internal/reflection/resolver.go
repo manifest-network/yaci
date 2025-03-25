@@ -23,11 +23,11 @@ type CustomResolver struct {
 	ctx         context.Context
 	seenSymbols map[string]bool
 	maxRetries  uint
-	mu          sync.Mutex
+	mu          sync.RWMutex
 }
 
 // NewCustomResolver creates a new instance of CustomResolver.
-func NewCustomResolver(files *protoregistry.Files, grpcConn *grpc.ClientConn, ctx context.Context, maxRetries uint) *CustomResolver {
+func NewCustomResolver(ctx context.Context, files *protoregistry.Files, grpcConn *grpc.ClientConn, maxRetries uint) *CustomResolver {
 	return &CustomResolver{
 		files:       files, // Note: The protoregistry.Files type is safe for concurrent use by multiple goroutines, but it is not safe to concurrently mutate the registry while also being used.
 		grpcConn:    grpcConn,
@@ -38,9 +38,12 @@ func NewCustomResolver(files *protoregistry.Files, grpcConn *grpc.ClientConn, ct
 }
 
 func (r *CustomResolver) FindMethodDescriptor(serviceName, methodName string) (protoreflect.MethodDescriptor, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	var methodDesc protoreflect.MethodDescriptor
 	var found bool
-	r.mu.Lock()
+
 	r.files.RangeFiles(func(fd protoreflect.FileDescriptor) bool {
 		services := fd.Services()
 		for i := 0; i < services.Len(); i++ {
@@ -59,7 +62,6 @@ func (r *CustomResolver) FindMethodDescriptor(serviceName, methodName string) (p
 		}
 		return true
 	})
-	r.mu.Unlock()
 	if !found {
 		return nil, fmt.Errorf("method %s not found in service %s", methodName, serviceName)
 	}
@@ -69,17 +71,12 @@ func (r *CustomResolver) FindMethodDescriptor(serviceName, methodName string) (p
 // FindMessageByName finds a message descriptor by its name.
 func (r *CustomResolver) FindMessageByName(name protoreflect.FullName) (protoreflect.MessageType, error) {
 	// First, try to find the message in the existing registry
-	r.mu.Lock()
-	desc, _ := r.files.FindDescriptorByName(name)
-	r.mu.Unlock()
+	r.mu.RLock()
+	desc, err := r.files.FindDescriptorByName(name)
+	r.mu.RUnlock()
 
-	if desc != nil {
-		msgDesc, ok := desc.(protoreflect.MessageDescriptor)
-		if !ok {
-			return nil, fmt.Errorf("descriptor %s is not a message", name)
-		}
-		msgType := dynamicpb.NewMessageType(msgDesc)
-		return msgType, nil
+	if err == nil && desc != nil {
+		return createMessageType(desc, name)
 	}
 
 	// If not found, attempt to fetch the descriptor via reflection
@@ -88,23 +85,28 @@ func (r *CustomResolver) FindMessageByName(name protoreflect.FullName) (protoref
 	}
 
 	// Try to find the message again after fetching
-	r.mu.Lock()
-	desc, err := r.files.FindDescriptorByName(name)
-	r.mu.Unlock()
+	r.mu.RLock()
+	desc, err = r.files.FindDescriptorByName(name)
+	r.mu.RUnlock()
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to find message by name %s: %w", name, err)
 	}
 
-	if desc != nil {
-		msgDesc, ok := desc.(protoreflect.MessageDescriptor)
-		if !ok {
-			return nil, fmt.Errorf("descriptor %s is not a message", name)
-		}
-		msgType := dynamicpb.NewMessageType(msgDesc)
-		return msgType, nil
+	return createMessageType(desc, name)
+}
+
+func createMessageType(desc protoreflect.Descriptor, name protoreflect.FullName) (protoreflect.MessageType, error) {
+	if desc == nil {
+		return nil, fmt.Errorf("message %s not found", name)
 	}
 
-	return nil, fmt.Errorf("message %s not found", name)
+	msgDesc, ok := desc.(protoreflect.MessageDescriptor)
+	if !ok {
+		return nil, fmt.Errorf("descriptor %s is not a message", name)
+	}
+
+	return dynamicpb.NewMessageType(msgDesc), nil
 }
 
 // FindMessageByURL finds a message descriptor by its URL.
@@ -123,11 +125,15 @@ func (r *CustomResolver) FindExtensionByNumber(_ protoreflect.FullName, _ protor
 }
 
 func (r *CustomResolver) fetchDescriptorBySymbol(symbol string) error {
-	r.mu.Lock()
-	if r.seenSymbols[symbol] {
-		r.mu.Unlock()
+	r.mu.RLock()
+	seen := r.seenSymbols[symbol]
+	r.mu.RUnlock()
+
+	if seen {
 		return nil
 	}
+
+	r.mu.Lock()
 	r.seenSymbols[symbol] = true
 	r.mu.Unlock()
 
@@ -175,26 +181,48 @@ func (r *CustomResolver) processFileDescriptors(fdProtos []*descriptorpb.FileDes
 			continue
 		}
 
-		// Recursively fetch dependencies
-		for _, dep := range fdProto.Dependency {
-			_, err := r.files.FindFileByPath(dep)
-			if err != nil {
-				if err := r.fetchDescriptorByName(dep, maxRetries); err != nil {
-					return fmt.Errorf("failed to fetch dependency %s: %w", dep, err)
-				}
-			}
+		if err := r.fetchDependencies(fdProto.Dependency, maxRetries); err != nil {
+			return err
 		}
 
-		fd, err := protodesc.NewFile(fdProto, r.files)
-		if err != nil {
-			return fmt.Errorf("failed to create file descriptor for %s: %w", name, err)
-		}
-
-		err = r.files.RegisterFile(fd)
-
-		if err != nil {
-			return fmt.Errorf("failed to register file %s: %w", name, err)
+		if err := r.registerFileDescriptor(fdProto); err != nil {
+			return err
 		}
 	}
+
+	return nil
+}
+
+func (r *CustomResolver) fetchDependencies(dependencies []string, maxRetries uint) error {
+	for _, dep := range dependencies {
+		// Skip if already registered
+		if _, err := r.files.FindFileByPath(dep); err == nil {
+			continue
+		}
+
+		// Unlock while fetching to avoid deadlocks with recursive calls
+		r.mu.Unlock()
+		err := r.fetchDescriptorByName(dep, maxRetries)
+		r.mu.Lock()
+
+		if err != nil {
+			return fmt.Errorf("failed to fetch dependency %s: %w", dep, err)
+		}
+	}
+	return nil
+}
+
+func (r *CustomResolver) registerFileDescriptor(fdProto *descriptorpb.FileDescriptorProto) error {
+	name := fdProto.GetName()
+
+	fd, err := protodesc.NewFile(fdProto, r.files)
+	if err != nil {
+		return fmt.Errorf("failed to create file descriptor for %s: %w", name, err)
+	}
+
+	if err := r.files.RegisterFile(fd); err != nil {
+		return fmt.Errorf("failed to register file %s: %w", name, err)
+	}
+
 	return nil
 }
