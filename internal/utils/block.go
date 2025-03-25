@@ -7,10 +7,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+const statusMethod = "cosmos.base.node.v1beta1.Service.Status"
+
+// GetLatestBlockHeightWithRetry retrieves the latest block height from the gRPC server with retry logic.
 func GetLatestBlockHeightWithRetry(gRPCClient *client.GRPCClient, maxRetries uint) (uint64, error) {
 	return ExtractGRPCField(
 		gRPCClient,
-		"cosmos.base.node.v1beta1.Service.Status",
+		statusMethod,
 		maxRetries,
 		"height",
 		func(s string) (uint64, error) {

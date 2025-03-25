@@ -10,6 +10,11 @@ import (
 	"github.com/liftedinit/yaci/internal/utils"
 )
 
+const (
+	blockMethodFullName = "cosmos.tx.v1beta1.Service.GetBlockWithTxs"
+	txMethodFullName    = "cosmos.tx.v1beta1.Service.GetTx"
+)
+
 // Extract extracts blocks and transactions from a gRPC server.
 func Extract(gRPCClient *client.GRPCClient, outputHandler output.OutputHandler, config config.ExtractConfig) error {
 	// Check if the missing block check should be skipped before setting the block range
@@ -27,13 +32,13 @@ func Extract(gRPCClient *client.GRPCClient, outputHandler output.OutputHandler, 
 
 	if config.LiveMonitoring {
 		slog.Info("Starting live extraction", "block_time", config.BlockTime)
-		err := ExtractLiveBlocksAndTransactions(gRPCClient, config.BlockStart, outputHandler, config.BlockTime, config.MaxConcurrency, config.MaxRetries)
+		err := extractLiveBlocksAndTransactions(gRPCClient, config.BlockStart, outputHandler, config.BlockTime, config.MaxConcurrency, config.MaxRetries)
 		if err != nil {
 			return fmt.Errorf("failed to process live blocks and transactions: %w", err)
 		}
 	} else {
 		slog.Info("Starting extraction", "start", config.BlockStart, "stop", config.BlockStop)
-		err := ExtractBlocksAndTransactions(gRPCClient, config.BlockStart, config.BlockStop, outputHandler, config.MaxConcurrency, config.MaxRetries)
+		err := extractBlocksAndTransactions(gRPCClient, config.BlockStart, config.BlockStop, outputHandler, config.MaxConcurrency, config.MaxRetries)
 		if err != nil {
 			return fmt.Errorf("failed to process blocks and transactions: %w", err)
 		}
@@ -93,22 +98,4 @@ func setBlockRange(gRPCClient *client.GRPCClient, outputHandler output.OutputHan
 // shouldSkipMissingBlockCheck returns true if the missing block check should be skipped.
 func shouldSkipMissingBlockCheck(cfg config.ExtractConfig) bool {
 	return (cfg.BlockStart != 0 && cfg.BlockStop != 0) || cfg.ReIndex
-}
-
-// processMissingBlocks processes missing blocks by fetching them from the gRPC server.
-func processMissingBlocks(gRPCClient *client.GRPCClient, outputHandler output.OutputHandler, cfg config.ExtractConfig) error {
-	missingBlockIds, err := outputHandler.GetMissingBlockIds(gRPCClient.Ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get missing block IDs: %w", err)
-	}
-
-	if len(missingBlockIds) > 0 {
-		slog.Warn("Missing blocks detected", "count", len(missingBlockIds))
-		for _, blockID := range missingBlockIds {
-			if err := ProcessSingleBlockWithRetry(gRPCClient, blockID, outputHandler, cfg.MaxRetries); err != nil {
-				return fmt.Errorf("failed to process missing block %d: %w", blockID, err)
-			}
-		}
-	}
-	return nil
 }

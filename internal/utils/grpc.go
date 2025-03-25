@@ -8,10 +8,12 @@ import (
 
 	"github.com/liftedinit/yaci/internal/client"
 	"github.com/pkg/errors"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 )
 
+// ParseMethodFullName parses a gRPC method full name into service name and method name
 func ParseMethodFullName(methodFullName string) (string, string, error) {
 	if methodFullName == "" {
 		return "", "", fmt.Errorf("method full name is empty")
@@ -31,6 +33,7 @@ func ParseMethodFullName(methodFullName string) (string, string, error) {
 	return serviceName, methodNameOnly, nil
 }
 
+// BuildFullMethodName constructs the full method name from the method descriptor
 func BuildFullMethodName(methodDescriptor protoreflect.MethodDescriptor) string {
 	fullMethodName := "/" + string(methodDescriptor.FullName())
 	lastDot := strings.LastIndex(fullMethodName, ".")
@@ -38,6 +41,34 @@ func BuildFullMethodName(methodDescriptor protoreflect.MethodDescriptor) string 
 		fullMethodName = fullMethodName[:lastDot] + "/" + fullMethodName[lastDot+1:]
 	}
 	return fullMethodName
+}
+
+// InvokeGRPC invokes a gRPC method and returns the response message
+func invokeGRPC(
+	gRPCClient *client.GRPCClient,
+	fullMethodName string,
+	methodDescriptor protoreflect.MethodDescriptor,
+	inputParams []byte,
+) (*dynamicpb.Message, error) {
+	// Create request and response messages
+	inputMsg := dynamicpb.NewMessage(methodDescriptor.Input())
+	outputMsg := dynamicpb.NewMessage(methodDescriptor.Output())
+
+	// Unmarshal input parameters if provided
+	if len(inputParams) > 0 {
+		uo := protojson.UnmarshalOptions{Resolver: gRPCClient.Resolver}
+		if err := uo.Unmarshal(inputParams, inputMsg); err != nil {
+			return nil, fmt.Errorf("failed to parse input parameters: %w", err)
+		}
+	}
+
+	// Make the gRPC call
+	err := gRPCClient.Conn.Invoke(gRPCClient.Ctx, fullMethodName, inputMsg, outputMsg)
+	if err != nil {
+		return nil, err
+	}
+
+	return outputMsg, nil
 }
 
 // RetryGRPCCall retries a gRPC call with exponential backoff
@@ -87,22 +118,48 @@ func ExtractGRPCField[T any](
 		methodFullName,
 		maxRetries,
 		func(fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) (T, error) {
-			inputMsg := dynamicpb.NewMessage(methodDescriptor.Input())
-			outputMsg := dynamicpb.NewMessage(methodDescriptor.Output())
-
-			err := gRPCClient.Conn.Invoke(gRPCClient.Ctx, fullMethodName, inputMsg, outputMsg)
+			outputMsg, err := invokeGRPC(gRPCClient, fullMethodName, methodDescriptor, nil)
 			if err != nil {
 				var zero T
-				return zero, errors.WithMessage(err, "error invoking method")
+				return zero, fmt.Errorf("error invoking method: $%w", err)
 			}
 
 			fieldValue := outputMsg.ProtoReflect().Get(outputMsg.Descriptor().Fields().ByName(protoreflect.Name(fieldName)))
 			if !fieldValue.IsValid() {
 				var zero T
-				return zero, errors.New(fieldName + " field not found in response")
+				return zero, fmt.Errorf("field `%s` not found in response: %w", fieldName, err)
 			}
 
 			return converter(fieldValue.String())
+		},
+	)
+}
+
+// GetGRPCResponse calls a gRPC method and returns the response as JSON
+func GetGRPCResponse(
+	gRPCClient *client.GRPCClient,
+	methodFullName string,
+	maxRetries uint,
+	inputParams []byte,
+) ([]byte, error) {
+	return RetryGRPCCall(
+		gRPCClient,
+		methodFullName,
+		maxRetries,
+		func(fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) ([]byte, error) {
+			outputMsg, err := invokeGRPC(gRPCClient, fullMethodName, methodDescriptor, inputParams)
+			if err != nil {
+				return nil, fmt.Errorf("error invoking method: %w", err)
+			}
+
+			// Marshal the response to JSON
+			mo := protojson.MarshalOptions{Resolver: gRPCClient.Resolver}
+			responseBytes, err := mo.Marshal(outputMsg)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal response: %w", err)
+			}
+
+			return responseBytes, nil
 		},
 	)
 }
