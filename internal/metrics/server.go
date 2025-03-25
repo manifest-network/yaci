@@ -10,13 +10,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func CreateMetricsServer(db *sql.DB, bech32Prefix string) error {
+func CreateMetricsServer(db *sql.DB, bech32Prefix, addr string) error {
 	collector := []prometheus.Collector{
 		collectors.NewTotalTransactionCountCollector(db),
 		collectors.NewTotalUniqueAddressesCollector(db, bech32Prefix)}
 	prometheus.MustRegister(collector...)
 
-	errChan := listen()
+	errChan := listen(addr)
 
 	select {
 	case err := <-errChan:
@@ -29,11 +29,11 @@ func CreateMetricsServer(db *sql.DB, bech32Prefix string) error {
 	return nil
 }
 
-func listen() chan error {
+func listen(addr string) chan error {
 	errChan := make(chan error)
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		if err := http.ListenAndServe(":2112", nil); err != nil {
+		if err := http.ListenAndServe(addr, nil); err != nil {
 			slog.Error("Failed to start metrics server", "error", err)
 			errChan <- err
 		}
