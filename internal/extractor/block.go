@@ -8,8 +8,8 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/liftedinit/yaci/internal/client"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/dynamicpb"
 
@@ -18,7 +18,6 @@ import (
 
 	"github.com/liftedinit/yaci/internal/models"
 	"github.com/liftedinit/yaci/internal/output"
-	"github.com/liftedinit/yaci/internal/reflection"
 )
 
 const (
@@ -26,7 +25,7 @@ const (
 	txMethodFullName    = "cosmos.tx.v1beta1.Service.GetTx"
 )
 
-func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint) error {
+func ExtractBlocksAndTransactions(gRPCClient *client.GRPCClient, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint) error {
 	displayProgress := start != stop
 	if displayProgress {
 		slog.Info("Extracting blocks and transactions", "range", fmt.Sprintf("[%d, %d]", start, stop))
@@ -54,7 +53,7 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 		}
 	}
 
-	if err := processBlocks(ctx, grpcConn, resolver, start, stop, outputHandler, maxConcurrency, maxRetries, bar); err != nil {
+	if err := processBlocks(gRPCClient, start, stop, outputHandler, maxConcurrency, maxRetries, bar); err != nil {
 		return fmt.Errorf("failed to process blocks and transactions: %w", err)
 	}
 
@@ -67,8 +66,8 @@ func ExtractBlocksAndTransactions(ctx context.Context, grpcConn *grpc.ClientConn
 	return nil
 }
 
-func processBlocks(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint, bar *progressbar.ProgressBar) error {
-	eg, ctx := errgroup.WithContext(ctx)
+func processBlocks(gRPCClient *client.GRPCClient, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint, bar *progressbar.ProgressBar) error {
+	eg, _ := errgroup.WithContext(gRPCClient.Ctx)
 	sem := make(chan struct{}, maxConcurrency)
 
 	for height := start; height <= stop; height++ {
@@ -78,7 +77,7 @@ func processBlocks(ctx context.Context, grpcConn *grpc.ClientConn, resolver *ref
 		eg.Go(func() error {
 			defer func() { <-sem }()
 
-			err := ProcessSingleBlockWithRetry(ctx, grpcConn, resolver, blockHeight, outputHandler, maxRetries)
+			err := ProcessSingleBlockWithRetry(gRPCClient, blockHeight, outputHandler, maxRetries)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
 					slog.Error("Failed to process block", "height", blockHeight, "error", err, "retries", maxRetries)
@@ -102,40 +101,40 @@ func processBlocks(ctx context.Context, grpcConn *grpc.ClientConn, resolver *ref
 	return nil
 }
 
-func ProcessSingleBlockWithRetry(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler, maxRetries uint) error {
+func ProcessSingleBlockWithRetry(gRPCClient *client.GRPCClient, blockHeight uint64, outputHandler output.OutputHandler, maxRetries uint) error {
 	var err error
 	for attempt := uint(1); attempt <= maxRetries; attempt++ {
 		// Check if the context has been cancelled before starting
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if gRPCClient.Ctx.Err() != nil {
+			return gRPCClient.Ctx.Err()
 		}
-		err = processSingleBlock(ctx, grpcConn, resolver, blockHeight, outputHandler)
+		err = processSingleBlock(gRPCClient, blockHeight, outputHandler)
 		if err == nil {
 			return nil
 		}
 		// Check if the context has been cancelled before retrying
-		if ctx.Err() != nil {
-			return ctx.Err()
+		if gRPCClient.Ctx.Err() != nil {
+			return gRPCClient.Ctx.Err()
 		}
 		// Wait before retrying
 		slog.Debug("Retrying processing block", "height", blockHeight, "attempt", attempt, "error", err)
 		select {
 		// Check if the context has been cancelled during the sleep
-		case <-ctx.Done():
-			return ctx.Err()
+		case <-gRPCClient.Ctx.Done():
+			return gRPCClient.Ctx.Err()
 		case <-time.After(time.Duration(2*attempt) * time.Second):
 		}
 	}
 	return err
 }
 
-func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver *reflection.CustomResolver, blockHeight uint64, outputHandler output.OutputHandler) error {
+func processSingleBlock(gRPCClient *client.GRPCClient, blockHeight uint64, outputHandler output.OutputHandler) error {
 	blockServiceName, blockMethodNameOnly, err := utils.ParseMethodFullName(blockMethodFullName)
 	if err != nil {
 		return fmt.Errorf("failed to parse block method full name: %w", err)
 	}
 
-	blockMethodDescriptor, err := resolver.FindMethodDescriptor(blockServiceName, blockMethodNameOnly)
+	blockMethodDescriptor, err := gRPCClient.Resolver.FindMethodDescriptor(blockServiceName, blockMethodNameOnly)
 	if err != nil {
 		return fmt.Errorf("failed to find block method descriptor: %w", err)
 	}
@@ -147,7 +146,7 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 		return fmt.Errorf("failed to parse tx method full name: %w", err)
 	}
 
-	txMethodDescriptor, err := resolver.FindMethodDescriptor(txServiceName, txMethodNameOnly)
+	txMethodDescriptor, err := gRPCClient.Resolver.FindMethodDescriptor(txServiceName, txMethodNameOnly)
 	if err != nil {
 		return fmt.Errorf("failed to find tx method descriptor: %w", err)
 	}
@@ -155,11 +154,11 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 	txFullMethodName := utils.BuildFullMethodName(txMethodDescriptor)
 
 	uo := protojson.UnmarshalOptions{
-		Resolver: resolver,
+		Resolver: gRPCClient.Resolver,
 	}
 
 	mo := protojson.MarshalOptions{
-		Resolver: resolver,
+		Resolver: gRPCClient.Resolver,
 	}
 
 	blockJsonParams := fmt.Sprintf(`{"height": %d}`, blockHeight)
@@ -174,7 +173,7 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 	// Create the response message
 	blockOutputMsg := dynamicpb.NewMessage(blockMethodDescriptor.Output())
 
-	err = grpcConn.Invoke(ctx, blockFullMethodName, blockInputMsg, blockOutputMsg)
+	err = gRPCClient.Conn.Invoke(gRPCClient.Ctx, blockFullMethodName, blockInputMsg, blockOutputMsg)
 	if err != nil {
 		return fmt.Errorf("error invoking block method: %w", err)
 	}
@@ -196,12 +195,12 @@ func processSingleBlock(ctx context.Context, grpcConn *grpc.ClientConn, resolver
 	}
 
 	// Get txs from block, if any
-	transactions, err := extractTransactions(ctx, grpcConn, data, txMethodDescriptor, txFullMethodName, uo, mo)
+	transactions, err := extractTransactions(gRPCClient.Ctx, gRPCClient.Conn, data, txMethodDescriptor, txFullMethodName, uo, mo)
 	if err != nil {
 		return fmt.Errorf("failed to extract transactions from block: %w", err)
 	}
 
-	err = outputHandler.WriteBlockWithTransactions(ctx, block, transactions)
+	err = outputHandler.WriteBlockWithTransactions(gRPCClient.Ctx, block, transactions)
 	if err != nil {
 		return fmt.Errorf("failed to write block with transactions: %w", err)
 	}

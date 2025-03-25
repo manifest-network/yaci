@@ -1,28 +1,25 @@
 package utils
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"strconv"
 	"time"
 
+	"github.com/liftedinit/yaci/internal/client"
 	"github.com/pkg/errors"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
-
-	"github.com/liftedinit/yaci/internal/reflection"
 )
 
-func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) (uint64, error) {
+func getLatestBlockHeight(gRPCClient *client.GRPCClient, fullMethodName string, methodDescriptor protoreflect.MethodDescriptor) (uint64, error) {
 	// Create the request message (empty)
 	inputMsg := dynamicpb.NewMessage(methodDescriptor.Input())
 
 	// Create the response message
 	outputMsg := dynamicpb.NewMessage(methodDescriptor.Output())
 
-	err := conn.Invoke(ctx, fullMethodName, inputMsg, outputMsg)
+	err := gRPCClient.Conn.Invoke(gRPCClient.Ctx, fullMethodName, inputMsg, outputMsg)
 	if err != nil {
 		return 0, errors.WithMessage(err, "error invoking status method")
 	}
@@ -41,14 +38,14 @@ func getLatestBlockHeight(ctx context.Context, conn *grpc.ClientConn, fullMethod
 	return latestHeight, nil
 }
 
-func GetLatestBlockHeightWithRetry(ctx context.Context, conn *grpc.ClientConn, resolver *reflection.CustomResolver, maxRetries uint) (uint64, error) {
+func GetLatestBlockHeightWithRetry(gRPCClient *client.GRPCClient, maxRetries uint) (uint64, error) {
 	statusMethodFullName := "cosmos.base.node.v1beta1.Service.Status"
 	statusServiceName, statusMethodNameOnly, err := ParseMethodFullName(statusMethodFullName)
 	if err != nil {
 		return 0, err
 	}
 
-	statusMethodDescriptor, err := resolver.FindMethodDescriptor(statusServiceName, statusMethodNameOnly)
+	statusMethodDescriptor, err := gRPCClient.Resolver.FindMethodDescriptor(statusServiceName, statusMethodNameOnly)
 	if err != nil {
 		return 0, fmt.Errorf("failed to find status method descriptor: %v", err)
 	}
@@ -56,7 +53,7 @@ func GetLatestBlockHeightWithRetry(ctx context.Context, conn *grpc.ClientConn, r
 
 	var latestHeight uint64
 	for attempt := uint(1); attempt <= maxRetries; attempt++ {
-		latestHeight, err = getLatestBlockHeight(ctx, conn, fullMethodName, statusMethodDescriptor)
+		latestHeight, err = getLatestBlockHeight(gRPCClient, fullMethodName, statusMethodDescriptor)
 		if err == nil {
 			return latestHeight, nil
 		}

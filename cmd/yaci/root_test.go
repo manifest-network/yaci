@@ -27,7 +27,7 @@ func TestRootCmd(t *testing.T) {
 	assert.Contains(t, output, "yaci connects to a gRPC server and extracts blockchain data.")
 
 	// Test invalid logLevel
-	_, err = executeCommand(yaci.RootCmd, "version", "--logLevel", "invalid")
+	_, err = executeCommand(yaci.RootCmd, "extract", "postgres", "--logLevel", "invalid")
 	assert.Error(t, err)
 	assert.ErrorContains(t, err, "invalid log level: invalid. Valid log levels are: debug|error|info|warn")
 }

@@ -11,9 +11,10 @@ type TotalUniqueAddressesCollector struct {
 	db                        *sql.DB
 	totalUniqueUserAddresses  *prometheus.Desc
 	totalUniqueGroupAddresses *prometheus.Desc
+	bech32Prefix              string
 }
 
-func NewTotalUniqueAddressesCollector(db *sql.DB) *TotalUniqueAddressesCollector {
+func NewTotalUniqueAddressesCollector(db *sql.DB, bech32Prefix string) *TotalUniqueAddressesCollector {
 	return &TotalUniqueAddressesCollector{
 		db: db,
 		totalUniqueUserAddresses: prometheus.NewDesc(
@@ -28,6 +29,7 @@ func NewTotalUniqueAddressesCollector(db *sql.DB) *TotalUniqueAddressesCollector
 			nil,
 			prometheus.Labels{"source": "postgres"},
 		),
+		bech32Prefix: bech32Prefix + "1",
 	}
 }
 
@@ -38,29 +40,30 @@ func (c *TotalUniqueAddressesCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *TotalUniqueAddressesCollector) Collect(ch chan<- prometheus.Metric) {
 	var userCount, groupCount int64
+	prefixLen := len(c.bech32Prefix)
 
 	// Single query to get both counts
 	err := c.db.QueryRow(`
 		WITH all_addresses AS (
 			SELECT sender AS address
 			FROM api.messages_main
-			WHERE sender LIKE 'manifest1%'
+			WHERE sender LIKE $1
 			
 			UNION
 			
 			SELECT unnested_address AS address
 			FROM api.messages_main
 			CROSS JOIN LATERAL unnest(mentions) AS m(unnested_address)
-			WHERE unnested_address LIKE 'manifest1%'
+			WHERE unnested_address LIKE $1
 		),
 		counts AS (
 			SELECT 
-				COUNT(DISTINCT CASE WHEN LENGTH(address) <= 47 THEN address END) AS user_count,
-				COUNT(DISTINCT CASE WHEN LENGTH(address) > 47 THEN address END) AS group_count
+				COUNT(DISTINCT CASE WHEN LENGTH(address) - $2 <= 38 THEN address END) AS user_count,
+				COUNT(DISTINCT CASE WHEN LENGTH(address) - $2 > 38 THEN address END) AS group_count
 			FROM all_addresses
 		)
 		SELECT user_count, group_count FROM counts
-	`).Scan(&userCount, &groupCount)
+	`, c.bech32Prefix+"%", prefixLen).Scan(&userCount, &groupCount)
 
 	if err != nil {
 		ch <- prometheus.NewInvalidMetric(c.totalUniqueUserAddresses, err)

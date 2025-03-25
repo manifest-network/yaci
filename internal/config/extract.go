@@ -7,16 +7,17 @@ import (
 )
 
 type ExtractConfig struct {
-	MaxConcurrency uint
-	MaxRetries     uint
-	BlockTime      uint
-	BlockStart     uint64
-	BlockStop      uint64
-	LiveMonitoring bool
-	Insecure       bool
-	ReIndex        bool
-	MaxRecvMsgSize int
-	Prometheus     bool
+	MaxConcurrency   uint
+	MaxRetries       uint
+	BlockTime        uint
+	BlockStart       uint64
+	BlockStop        uint64
+	LiveMonitoring   bool
+	Insecure         bool
+	ReIndex          bool
+	MaxRecvMsgSize   int
+	EnablePrometheus bool
+	PrometheusPort   uint
 }
 
 func (c ExtractConfig) Validate() error {
@@ -28,15 +29,16 @@ func (c ExtractConfig) Validate() error {
 
 func LoadExtractConfigFromCLI() ExtractConfig {
 	return ExtractConfig{
-		MaxConcurrency: viper.GetUint("max-concurrency"),
-		MaxRetries:     viper.GetUint("max-retries"),
-		BlockTime:      viper.GetUint("block-time"),
-		BlockStart:     viper.GetUint64("start"),
-		BlockStop:      viper.GetUint64("stop"),
-		LiveMonitoring: viper.GetBool("live"),
-		Insecure:       viper.GetBool("insecure"),
-		ReIndex:        viper.GetBool("reindex"),
-		MaxRecvMsgSize: viper.GetInt("max-recv-msg-size"),
-		Prometheus:     viper.GetBool("prometheus"),
+		MaxConcurrency:   viper.GetUint("max-concurrency"),
+		MaxRetries:       viper.GetUint("max-retries"),
+		BlockTime:        viper.GetUint("block-time"),
+		BlockStart:       viper.GetUint64("start"),
+		BlockStop:        viper.GetUint64("stop"),
+		LiveMonitoring:   viper.GetBool("live"),
+		Insecure:         viper.GetBool("insecure"),
+		ReIndex:          viper.GetBool("reindex"),
+		MaxRecvMsgSize:   viper.GetInt("max-recv-msg-size"),
+		EnablePrometheus: viper.GetBool("enable-prometheus"),
+		PrometheusPort:   viper.GetUint("prometheus-port"),
 	}
 }

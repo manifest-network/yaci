@@ -10,10 +10,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func CreateMetricsServer(db *sql.DB) error {
+func CreateMetricsServer(db *sql.DB, bech32Prefix string) error {
 	collector := []prometheus.Collector{
 		collectors.NewTotalTransactionCountCollector(db),
-		collectors.NewTotalUniqueAddressesCollector(db)}
+		collectors.NewTotalUniqueAddressesCollector(db, bech32Prefix)}
 	prometheus.MustRegister(collector...)
 
 	errChan := listen()

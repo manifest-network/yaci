@@ -33,9 +33,9 @@ func TestPostgres(t *testing.T) {
 	}
 
 	// Start the infrastructure using Docker Compose.
-	// The infrastructure is defined in the `infra.yml` file.
-	opts := &docker.Options{WorkingDir: DockerWorkingDirectory}
-	_, err := docker.RunDockerComposeE(t, opts, "-f", "infra.yml", "up", "--build", "-d", "--wait")
+	// The infrastructure is defined in the `compose.yaml` file.
+	opts := &docker.Options{WorkingDir: DockerWorkingDirectory + "/infra"}
+	_, err := docker.RunDockerComposeE(t, opts, "up", "--build", "-d", "--wait")
 	require.NoError(t, err)
 
 	testExtractBlocksAndTxs(t)
@@ -45,7 +45,7 @@ func TestPostgres(t *testing.T) {
 
 	t.Cleanup(func() {
 		// Stop the infrastructure using Docker Compose.
-		_, err := docker.RunDockerComposeE(t, opts, "-f", "infra.yml", "down", "-v")
+		_, err := docker.RunDockerComposeE(t, opts, "down", "-v")
 		require.NoError(t, err)
 	})
 }
@@ -60,7 +60,7 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 28 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
+		// The number of transactions is 28 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
 		require.Len(t, transactions, 28)
 	})
 }
@@ -161,17 +161,14 @@ func TestPrometheusMetrics(t *testing.T) {
 		t.Skip("skipping test in short mode.")
 	}
 
-	opts := &docker.Options{WorkingDir: DockerWorkingDirectory}
-	_, err := docker.RunDockerComposeE(t, opts, "-f", "yaci.yml", "up", "--build", "-d", "--wait")
-	require.NoError(t, err)
-
-	_, err = docker.RunDockerComposeE(t, opts, "-f", "yaci.yml", "restart", "postgrest")
+	opts := &docker.Options{WorkingDir: DockerWorkingDirectory + "/yaci"}
+	_, err := docker.RunDockerComposeE(t, opts, "up", "--build", "-d", "--wait")
 	require.NoError(t, err)
 
 	testPrometheusMetrics(t)
 
 	t.Cleanup(func() {
-		_, err := docker.RunDockerComposeE(t, opts, "-f", "yaci.yml", "down", "-v")
+		_, err := docker.RunDockerComposeE(t, opts, "down", "-v")
 		require.NoError(t, err)
 	})
 }

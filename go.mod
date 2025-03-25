@@ -5,9 +5,11 @@ go 1.23.6
 require (
 	github.com/go-resty/resty/v2 v2.16.4
 	github.com/golang-migrate/migrate/v4 v4.18.1
+	github.com/golang/protobuf v1.5.4
 	github.com/gruntwork-io/terratest v0.48.1
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/pkg/errors v0.9.1
+	github.com/prometheus/client_golang v1.21.1
 	github.com/schollz/progressbar/v3 v3.18.0
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0
@@ -45,7 +47,6 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.3 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.21.1 // indirect
 	github.com/prometheus/client_model v0.6.1 // indirect
 	github.com/prometheus/common v0.62.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
