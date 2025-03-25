@@ -40,7 +40,7 @@ var PostgresRunE = func(cmd *cobra.Command, args []string) error {
 
 		// The total unique addresses metric requires to know the Bech32 prefix of the chain.
 		// Query the gRPC server for the Bech32 prefix.
-		bech32Prefix, err := utils.GetBech32Prefix(gRPCClient, extractConfig.MaxRetries)
+		bech32Prefix, err := utils.GetBech32PrefixWithRetry(gRPCClient, extractConfig.MaxRetries)
 		if err != nil {
 			return fmt.Errorf("failed to get Bech32 prefix: %w", err)
 		}
