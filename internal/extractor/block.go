@@ -78,21 +78,33 @@ func processMissingBlocks(gRPCClient *client.GRPCClient, outputHandler output.Ou
 
 // processBlocks processes blocks in parallel using goroutines.
 func processBlocks(gRPCClient *client.GRPCClient, start, stop uint64, outputHandler output.OutputHandler, maxConcurrency, maxRetries uint, bar *progressbar.ProgressBar) error {
-	eg, _ := errgroup.WithContext(gRPCClient.Ctx)
+	eg, ctx := errgroup.WithContext(gRPCClient.Ctx)
 	sem := make(chan struct{}, maxConcurrency)
 
 	for height := start; height <= stop; height++ {
+		if ctx.Err() != nil {
+			slog.Info("Processing cancelled by user")
+			return ctx.Err()
+		}
+
 		blockHeight := height
 		sem <- struct{}{}
+
+		clientWithCtx := &client.GRPCClient{
+			Conn:     gRPCClient.Conn,
+			Ctx:      ctx,
+			Resolver: gRPCClient.Resolver,
+		}
 
 		eg.Go(func() error {
 			defer func() { <-sem }()
 
-			err := processSingleBlockWithRetry(gRPCClient, blockHeight, outputHandler, maxRetries)
+			err := processSingleBlockWithRetry(clientWithCtx, blockHeight, outputHandler, maxRetries)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
-					slog.Error("Failed to process block", "height", blockHeight, "error", err, "retries", maxRetries)
+					return err
 				}
+				slog.Error("Failed to process block", "height", blockHeight, "error", err, "retries", maxRetries)
 				return fmt.Errorf("failed to process block %d: %w", blockHeight, err)
 			}
 
