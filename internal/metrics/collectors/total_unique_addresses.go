@@ -6,6 +6,28 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const TotalUniqueAddressesQuery = `
+		WITH all_addresses AS (
+			SELECT sender AS address
+			FROM api.messages_main
+			WHERE sender LIKE $1
+			
+			UNION
+			
+			SELECT unnested_address AS address
+			FROM api.messages_main
+			CROSS JOIN LATERAL unnest(mentions) AS m(unnested_address)
+			WHERE unnested_address LIKE $1
+		),
+		counts AS (
+			SELECT 
+				COUNT(DISTINCT CASE WHEN LENGTH(address) - $2 <= 38 THEN address END) AS user_count,
+				COUNT(DISTINCT CASE WHEN LENGTH(address) - $2 > 38 THEN address END) AS group_count
+			FROM all_addresses
+		)
+		SELECT user_count, group_count FROM counts
+	`
+
 // TotalUniqueAddressesCollector collects metrics for both user and group addresses in one query
 type TotalUniqueAddressesCollector struct {
 	db                        *sql.DB
@@ -43,27 +65,7 @@ func (c *TotalUniqueAddressesCollector) Collect(ch chan<- prometheus.Metric) {
 	prefixLen := len(c.bech32Prefix)
 
 	// Single query to get both counts
-	err := c.db.QueryRow(`
-		WITH all_addresses AS (
-			SELECT sender AS address
-			FROM api.messages_main
-			WHERE sender LIKE $1
-			
-			UNION
-			
-			SELECT unnested_address AS address
-			FROM api.messages_main
-			CROSS JOIN LATERAL unnest(mentions) AS m(unnested_address)
-			WHERE unnested_address LIKE $1
-		),
-		counts AS (
-			SELECT 
-				COUNT(DISTINCT CASE WHEN LENGTH(address) - $2 <= 38 THEN address END) AS user_count,
-				COUNT(DISTINCT CASE WHEN LENGTH(address) - $2 > 38 THEN address END) AS group_count
-			FROM all_addresses
-		)
-		SELECT user_count, group_count FROM counts
-	`, c.bech32Prefix+"%", prefixLen).Scan(&userCount, &groupCount)
+	err := c.db.QueryRow(TotalUniqueAddressesQuery, c.bech32Prefix+"%", prefixLen).Scan(&userCount, &groupCount)
 
 	if err != nil {
 		ch <- prometheus.NewInvalidMetric(c.totalUniqueUserAddresses, err)

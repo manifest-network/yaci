@@ -6,6 +6,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const TotalTransactionCountQuery = `SELECT COUNT(*) FROM api.transactions_main`
+
 // TotalTransactionCountCollector is a EnablePrometheus collector that collects the total number of transactions
 // Nested messages, which are messages that are sent within other messages, are not counted
 type TotalTransactionCountCollector struct {
@@ -31,7 +33,7 @@ func (c *TotalTransactionCountCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (c *TotalTransactionCountCollector) Collect(ch chan<- prometheus.Metric) {
 	var count int64
-	err := c.db.QueryRow("SELECT COUNT(*) FROM api.transactions_main").Scan(&count)
+	err := c.db.QueryRow(TotalTransactionCountQuery).Scan(&count)
 	if err != nil {
 		ch <- prometheus.NewInvalidMetric(c.totalTxCount, err)
 		return
