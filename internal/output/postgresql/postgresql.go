@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 
 	"github.com/golang-migrate/migrate/v4"
 	migratepgx "github.com/golang-migrate/migrate/v4/database/pgx"
@@ -29,8 +30,18 @@ func (h *PostgresOutputHandler) GetPool() *pgxpool.Pool {
 	return h.pool
 }
 
-func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error) {
-	pool, err := pgxpool.New(context.Background(), connString)
+func NewPostgresOutputHandler(connString string, maxConcurrency uint) (*PostgresOutputHandler, error) {
+	config, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PostgreSQL connection string: %w", err)
+	}
+
+	if maxConcurrency > math.MaxInt32 {
+		return nil, fmt.Errorf("max concurrency exceeds maximum int32 value")
+	}
+	config.MaxConns = int32(maxConcurrency)
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}

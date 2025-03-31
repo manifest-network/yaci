@@ -1,5 +1,5 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_FLAGS := -ldflags "-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)"
+BUILD_FLAGS := -ldflags "-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -tags manifest
 
 #### Build ####
 build: ## Build the binary

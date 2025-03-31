@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 28 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 28)
+		// The number of transactions is 31 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 31)
 	})
 }
 
@@ -180,7 +180,9 @@ func testPrometheusMetrics(t *testing.T) {
 		require.Equal(t, 200, resp.StatusCode())
 		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_user{source=\"postgres\"} 2")
 		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_group{source=\"postgres\"} 2")
-		require.Contains(t, string(resp.Body()), "yaci_transactions_total_count{source=\"postgres\"} 28")
+		require.Contains(t, string(resp.Body()), "yaci_transactions_total_count{source=\"postgres\"} 31")
+		require.Contains(t, string(resp.Body()), "yaci_tokenomics_total_burn_amount{source=\"postgres\"} 123")
+		require.Contains(t, string(resp.Body()), "yaci_tokenomics_total_payout_amount{source=\"postgres\"} 7.54321e+06")
 	})
 }
 

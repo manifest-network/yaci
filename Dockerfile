@@ -17,7 +17,7 @@ COPY . .
 
 # Build the Go app as a static binary.
 # -o specifies the output file, in this case, the executable name.
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o yaci .
+RUN CGO_ENABLED=0 GOOS=linux go build -tags manifest -a -installsuffix cgo -o yaci .
 
 # Start from a Debian Slim image to keep the final image size down.
 FROM debian:bookworm-slim

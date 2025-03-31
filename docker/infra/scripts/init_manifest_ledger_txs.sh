@@ -43,6 +43,7 @@ run_tx tx tokenfactory change-admin factory/$ADDR1/ufoobar $ADDR2 --from $KEY --
 
 ## Manifest module
 run_proposal "payout.json" "$ADDR1" "tx-payout-proposal" --from $KEY
+run_proposal "burn.json" "$ADDR1" "tx-burn-proposal" --from $KEY
 
 ### Group module
 echo ${GROUP_MEMBERS} > members.json && cat members.json

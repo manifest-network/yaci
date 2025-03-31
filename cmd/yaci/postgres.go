@@ -29,7 +29,7 @@ var PostgresRunE = func(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to parse PostgreSQL connection string: %w", err)
 	}
 
-	outputHandler, err := postgresql.NewPostgresOutputHandler(postgresConfig.ConnString)
+	outputHandler, err := postgresql.NewPostgresOutputHandler(postgresConfig.ConnString, extractConfig.MaxConcurrency)
 	if err != nil {
 		return fmt.Errorf("failed to create PostgreSQL output handler: %w", err)
 	}

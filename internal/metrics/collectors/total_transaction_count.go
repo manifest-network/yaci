@@ -41,3 +41,9 @@ func (c *TotalTransactionCountCollector) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(c.totalTxCount, prometheus.CounterValue, float64(count))
 }
+
+func init() {
+	RegisterCollectorFactory(func(db *sql.DB, extraParams ...interface{}) (prometheus.Collector, error) {
+		return NewTotalTransactionCountCollector(db), nil
+	})
+}

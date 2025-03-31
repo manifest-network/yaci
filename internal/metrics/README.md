@@ -9,10 +9,14 @@ These metrics can then be scraped by a Prometheus server for monitoring and aler
 
 ## Collectors
 
-The following collectors are currently implemented:
+The following generic collectors are currently implemented:
 
 -   **TotalTransactionCountCollector**: Collects the total number of transactions stored in the database.
 -   **TotalUniqueAddressesCollector**: Collects the total number of unique user and group addresses stored in the database.
+
+The following Manifest Network collectors are also implemented:
+
+-   **TotalPayoutBurnCollector**: Collects the total amount of MFX minted and burned.
 
 ## Usage
 
@@ -59,5 +63,13 @@ func (c *ExampleCollector) Collect(ch chan<- prometheus.Metric) {
     // If there is an error, send an invalid metric.
     // Otherwise, send the metric value.
     ch <- prometheus.MustNewConstMetric(c.exampleMetric, prometheus.GaugeValue, float64(123))
+}
+
+// Register the ExampleCollector with the global registry.
+// The collector will be initialized and registered when the application starts.
+func init() {
+	RegisterCollectorFactory(func(db *sql.DB, extraParams ...interface{}) (prometheus.Collector, error) {
+		return NewExampleCollector(db), nil
+	})
 }
 ```

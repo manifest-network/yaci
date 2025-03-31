@@ -2,6 +2,7 @@ package collectors
 
 import (
 	"database/sql"
+	"errors"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -75,4 +76,17 @@ func (c *TotalUniqueAddressesCollector) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(c.totalUniqueUserAddresses, prometheus.CounterValue, float64(userCount))
 	ch <- prometheus.MustNewConstMetric(c.totalUniqueGroupAddresses, prometheus.CounterValue, float64(groupCount))
+}
+
+func init() {
+	RegisterCollectorFactory(func(db *sql.DB, extraParams ...interface{}) (prometheus.Collector, error) {
+		if len(extraParams) < 1 {
+			return nil, errors.New("missing bech32 prefix")
+		}
+		bech32Prefix, ok := extraParams[0].(string)
+		if !ok {
+			return nil, errors.New("invalid bech32 prefix type")
+		}
+		return NewTotalUniqueAddressesCollector(db, bech32Prefix), nil
+	})
 }

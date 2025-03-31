@@ -10,6 +10,8 @@ import (
 	"github.com/liftedinit/yaci/internal/metrics/collectors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	_ "github.com/liftedinit/yaci/internal/metrics/collectors" // Import all collectors
 )
 
 func CreateMetricsServer(db *sql.DB, bech32Prefix, addr string) (*http.Server, error) {
@@ -35,9 +37,11 @@ func CreateMetricsServer(db *sql.DB, bech32Prefix, addr string) (*http.Server, e
 		return nil, errors.New("invalid port number")
 	}
 
-	allCollectors := []prometheus.Collector{
-		collectors.NewTotalTransactionCountCollector(db),
-		collectors.NewTotalUniqueAddressesCollector(db, bech32Prefix)}
+	allCollectors, err := collectors.DefaultRegistry.CreateCollectors(db, bech32Prefix)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, c := range allCollectors {
 		if err := prometheus.Register(c); err != nil {
 			var are prometheus.AlreadyRegisteredError

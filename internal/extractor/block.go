@@ -102,6 +102,10 @@ func processBlocks(gRPCClient *client.GRPCClient, start, stop uint64, outputHand
 			err := processSingleBlockWithRetry(clientWithCtx, blockHeight, outputHandler, maxRetries)
 			if err != nil {
 				if !errors.Is(err, context.Canceled) {
+					slog.Error("Block processing error",
+						"height", blockHeight,
+						"error", err,
+						"errorType", fmt.Sprintf("%T", err))
 					return err
 				}
 				slog.Error("Failed to process block", "height", blockHeight, "error", err, "retries", maxRetries)
