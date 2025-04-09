@@ -1,6 +1,6 @@
 module github.com/liftedinit/yaci
 
-go 1.23.6
+go 1.23.8
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
