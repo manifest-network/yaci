@@ -71,6 +71,8 @@ The following flags are available for all `extract` subcommand:
 - `-r`, `--max-retries` - The maximum number of retries to connect to the gRPC server (default: 3)
 - `-c`, `--max-concurrency` - The maximum number of concurrent requests to the gRPC server (default: 100)
 - `-m`, `--max-recv-msg-size` - The maximum gRPC message size, in bytes, the client can receive (default: 4194304 (4MB))'
+- `--enable-prometheus` - Enable Prometheus metrics (default: false)
+- `--prometheus-addr` - The address to bind the Prometheus metrics server to (default: "0.0.0.0:2112")
 
 ### Subcommands
 

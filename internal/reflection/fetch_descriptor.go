@@ -14,7 +14,6 @@ import (
 // FetchAllDescriptors retrieves all file descriptors supported by the server.
 func FetchAllDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, maxRetries uint) ([]*descriptorpb.FileDescriptorProto, error) {
 	seenFiles := make(map[string]*descriptorpb.FileDescriptorProto)
-	var result []*descriptorpb.FileDescriptorProto
 
 	// List all services
 	services, err := listServices(ctx, grpcClient, maxRetries)
@@ -31,6 +30,7 @@ func FetchAllDescriptors(ctx context.Context, grpcClient *grpc.ClientConn, maxRe
 	}
 
 	// Collect all descriptors
+	result := make([]*descriptorpb.FileDescriptorProto, 0, len(seenFiles))
 	for _, fd := range seenFiles {
 		result = append(result, fd)
 	}
@@ -56,7 +56,7 @@ func listServices(ctx context.Context, grpcClient *grpc.ClientConn, maxRetries u
 		return nil, fmt.Errorf("unexpected response type: %T", resp.MessageResponse)
 	}
 
-	var services []string
+	services := make([]string, 0, len(listServicesResp.ListServicesResponse.Service))
 	for _, service := range listServicesResp.ListServicesResponse.Service {
 		services = append(services, service.Name)
 	}
@@ -116,7 +116,7 @@ func fetchFileDescriptorsFromRequest(ctx context.Context, grpcClient *grpc.Clien
 		return nil, fmt.Errorf("unexpected response type: %T", resp.MessageResponse)
 	}
 
-	var fdProtos []*descriptorpb.FileDescriptorProto
+	fdProtos := make([]*descriptorpb.FileDescriptorProto, 0, len(fdResponse.FileDescriptorResponse.FileDescriptorProto))
 	for _, fdBytes := range fdResponse.FileDescriptorResponse.FileDescriptorProto {
 		fdProto := &descriptorpb.FileDescriptorProto{}
 		if err := proto.Unmarshal(fdBytes, fdProto); err != nil {

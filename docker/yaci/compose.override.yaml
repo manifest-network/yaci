@@ -1,0 +1,18 @@
+# Override the postgrest service from compose.yaml so it starts after the YACI service
+services:
+  postgrest-wait:
+    image: busybox
+    restart: "no"
+    command: sh -c "sleep 30"
+    depends_on:
+      yaci:
+        condition: service_healthy
+
+  postgrest:
+    depends_on:
+      db:
+        condition: service_healthy
+      manifest-ledger-tx:
+        condition: service_completed_successfully
+      postgrest-wait:
+        condition: service_completed_successfully

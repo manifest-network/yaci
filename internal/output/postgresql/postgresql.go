@@ -25,8 +25,17 @@ type PostgresOutputHandler struct {
 	pool *pgxpool.Pool
 }
 
+func (h *PostgresOutputHandler) GetPool() *pgxpool.Pool {
+	return h.pool
+}
+
 func NewPostgresOutputHandler(connString string) (*PostgresOutputHandler, error) {
-	pool, err := pgxpool.New(context.Background(), connString)
+	config, err := pgxpool.ParseConfig(connString)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PostgreSQL connection string: %w", err)
+	}
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)
 	}

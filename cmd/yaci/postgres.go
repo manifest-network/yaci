@@ -5,7 +5,10 @@ import (
 	"log/slog"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/liftedinit/yaci/internal/metrics"
 	"github.com/liftedinit/yaci/internal/output/postgresql"
+	"github.com/liftedinit/yaci/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -14,17 +17,12 @@ import (
 )
 
 var PostgresRunE = func(cmd *cobra.Command, args []string) error {
-	extractConfig := config.LoadExtractConfigFromCLI()
-	if err := extractConfig.Validate(); err != nil {
-		return fmt.Errorf("invalid Extract configuration: %w", err)
-	}
-
 	postgresConfig := config.LoadPostgresConfigFromCLI()
 	if err := postgresConfig.Validate(); err != nil {
 		return fmt.Errorf("invalid PostgreSQL configuration: %w", err)
 	}
 
-	slog.Debug("Command-line arguments", "extractConfig", extractConfig, "postgresConfig", postgresConfig)
+	slog.Debug("Command-line arguments", "postgresConfig", postgresConfig)
 
 	_, err := pgxpool.ParseConfig(postgresConfig.ConnString)
 	if err != nil {
@@ -37,14 +35,40 @@ var PostgresRunE = func(cmd *cobra.Command, args []string) error {
 	}
 	defer outputHandler.Close()
 
-	return extractor.Extract(args[0], outputHandler, extractConfig)
+	if extractConfig.EnablePrometheus {
+		slog.Info("Starting Prometheus metrics server...")
+
+		// The total unique addresses metric requires to know the Bech32 prefix of the chain.
+		// Query the gRPC server for the Bech32 prefix.
+		bech32Prefix, err := utils.GetBech32PrefixWithRetry(gRPCClient, extractConfig.MaxRetries)
+		if err != nil {
+			return fmt.Errorf("failed to get Bech32 prefix: %w", err)
+		}
+		slog.Debug("Bech32 prefix retrieved", "bech32_prefix", bech32Prefix)
+
+		db := stdlib.OpenDBFromPool(outputHandler.GetPool())
+		_, err = metrics.CreateMetricsServer(db, bech32Prefix, extractConfig.PrometheusListenAddr)
+		if err != nil {
+			return fmt.Errorf("failed to start metrics server: %w", err)
+		}
+	}
+
+	return extractor.Extract(gRPCClient, outputHandler, extractConfig)
 }
 
 var PostgresCmd = &cobra.Command{
-	Use:   "postgres [address] [flags]",
+	Use:   "postgres [flags]",
 	Short: "Extract chain data to a PostgreSQL database",
-	Args:  cobra.ExactArgs(1),
 	RunE:  PostgresRunE,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if parent := cmd.Parent(); parent != nil && parent.PreRunE != nil {
+			if err := parent.PreRunE(parent, args); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	},
 }
 
 func init() {

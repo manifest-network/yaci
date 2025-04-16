@@ -1,5 +1,5 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_FLAGS := -ldflags "-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)"
+BUILD_FLAGS := -ldflags "-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -tags manifest
 
 #### Build ####
 build: ## Build the binary
@@ -50,19 +50,19 @@ coverage: ## Run tests with coverage
 #### Docker ####
 docker-infra-up:
 	@echo "--> Running docker compose up --build --wait -d"
-	@docker compose -f docker/infra.yml up --build --wait -d
+	@cd docker/infra && docker compose up --build --wait -d && cd -
 
 docker-infra-down:
 	@echo "--> Running docker compose down -v"
-	@docker compose -f docker/infra.yml down -v
+	@cd docker/infra && docker compose down -v && cd -
 
 docker-up:
 	@echo "--> Running docker compose up --build --wait -d"
-	@docker compose -f docker/yaci.yml up --build --wait -d
+	@cd docker/yaci && docker compose up --build --wait -d && cd -
 
 docker-down:
 	@echo "--> Running docker compose down -v"
-	@docker compose -f docker/yaci.yml down -v
+	@cd docker/yaci && docker compose down -v && cd -
 
 .PHONY: docker-up docker-down docker-infra-up docker-infra-down
 

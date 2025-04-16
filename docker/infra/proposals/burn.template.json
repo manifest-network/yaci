@@ -1,0 +1,21 @@
+{
+  "group_policy_address": "${POA_ADMIN_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/liftedinit.manifest.v1.MsgBurnHeldBalance",
+      "authority": "${POA_ADMIN_ADDRESS}",
+      "burnCoins": [
+        {
+          "denom": "${DENOM}",
+          "amount": "123"
+        }
+      ]
+    }
+  ],
+  "metadata": "",
+  "title": "Burn held balance",
+  "summary": "Burn some umfx",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}

@@ -23,7 +23,7 @@ services:
       retries: 5
 
   manifest-ledger:
-    image: ghcr.io/liftedinit/manifest-ledger:v0.0.1-rc.3
+    image: ghcr.io/liftedinit/manifest-ledger:v1.0.3
     volumes:
         - manifest-ledger-bin:/usr/bin
         - manifest-ledger-data:/persistent
@@ -31,7 +31,7 @@ services:
     ports:
       - "9090:9090"
     entrypoint: ["/bin/bash", "-c"]
-    env_file: .env
+    env_file: ../.env
     command: /usr/local/bin/init_manifest_ledger.sh
     healthcheck:
       test: manifestd status | grep '"earliest_block_height":"1"'
@@ -42,20 +42,20 @@ services:
   manifest-generate-proposals:
     restart: no
     build:
-        context: .
+        context: ..
         dockerfile: Dockerfile.base
     volumes:
       - ./proposals:/templates
       - manifest-proposals-data:/proposals
       - ./scripts/generate_proposals.sh:/usr/local/bin/generate_proposals.sh:ro
     entrypoint: ["/bin/bash", "-c"]
-    env_file: .env
+    env_file: ../.env
     command: /usr/local/bin/generate_proposals.sh
 
   # Setup some transactions on the blockchain
   manifest-ledger-tx:
     restart: no
-    image: ghcr.io/liftedinit/manifest-ledger:v0.0.1-rc.3
+    image: ghcr.io/liftedinit/manifest-ledger:v1.0.3
     volumes:
       - manifest-ledger-bin:/usr/bin
       - manifest-ledger-data:/persistent
@@ -63,7 +63,7 @@ services:
       - manifest-proposals-data:/proposals
       - ./scripts/init_manifest_ledger_txs.sh:/usr/local/bin/init_manifest_ledger_txs.sh:ro
     entrypoint: ["/bin/bash", "-c"]
-    env_file: .env
+    env_file: ../.env
     command: /usr/local/bin/init_manifest_ledger_txs.sh
     depends_on:
       manifest-ledger:

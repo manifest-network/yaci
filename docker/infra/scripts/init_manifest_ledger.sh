@@ -8,8 +8,8 @@ update_test_genesis() {
   mv $HOME_DIR/config/tmp_genesis.json $HOME_DIR/config/genesis.json
 }
 
-echo $MNEMO1 | $BINARY keys add $KEY --home=$HOME_DIR --keyring-backend $KEYRING --algo $KEYALGO --recover
-echo $MNEMO2 | $BINARY keys add $KEY2 --home=$HOME_DIR --keyring-backend $KEYRING --algo $KEYALGO --recover
+echo "$MNEMO1" | $BINARY keys add "$KEY" --home="$HOME_DIR" --keyring-backend "$KEYRING" --recover
+echo "$MNEMO2" | $BINARY keys add "$KEY2" --home="$HOME_DIR" --keyring-backend "$KEYRING" --recover
 $BINARY init $MONIKER --home=$HOME_DIR --chain-id $CHAIN_ID
 update_test_genesis '.consensus["params"]["block"]["max_gas"]="1000000000"'
 update_test_genesis '.app_state["gov"]["params"]["min_deposit"]=[{"denom":"'$DENOM'","amount":"1000000"}]'

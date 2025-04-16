@@ -1,21 +1,17 @@
 package extractor
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 
-	"google.golang.org/grpc"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/types/dynamicpb"
-
+	"github.com/liftedinit/yaci/internal/client"
 	"github.com/liftedinit/yaci/internal/models"
+	"github.com/liftedinit/yaci/internal/utils"
 )
 
-func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[string]interface{}, txMethodDescriptor protoreflect.MethodDescriptor, txFullMethodName string, uo protojson.UnmarshalOptions, mo protojson.MarshalOptions) ([]*models.Transaction, error) {
+func extractTransactions(gRPCClient *client.GRPCClient, data map[string]interface{}, maxRetries uint) ([]*models.Transaction, error) {
 	blockData, exists := data["block"].(map[string]interface{})
 	if !exists || blockData == nil {
 		return nil, nil
@@ -44,21 +40,13 @@ func extractTransactions(ctx context.Context, conn *grpc.ClientConn, data map[st
 		hash := sha256.Sum256(decodedBytes)
 		hashStr := hex.EncodeToString(hash[:])
 
-		txInputMsg := dynamicpb.NewMessage(txMethodDescriptor.Input())
-		txJsonParams := fmt.Sprintf(`{"hash": "%s"}`, hashStr)
-		if err := uo.Unmarshal([]byte(txJsonParams), txInputMsg); err != nil {
-			return nil, fmt.Errorf("failed to parse tx input parameters: %w", err)
-		}
-		txOutputMsg := dynamicpb.NewMessage(txMethodDescriptor.Output())
-
-		err = conn.Invoke(ctx, txFullMethodName, txInputMsg, txOutputMsg)
-		if err != nil {
-			return nil, fmt.Errorf("error invoking tx method: %w", err)
-		}
-		txJsonBytes, err := mo.Marshal(txOutputMsg)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal tx response: %w", err)
-		}
+		txJsonParams := []byte(fmt.Sprintf(`{"hash": "%s"}`, hashStr))
+		txJsonBytes, err := utils.GetGRPCResponse(
+			gRPCClient,
+			txMethodFullName,
+			maxRetries,
+			txJsonParams,
+		)
 
 		transaction := &models.Transaction{
 			Hash: hashStr,

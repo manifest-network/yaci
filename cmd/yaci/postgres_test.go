@@ -33,9 +33,9 @@ func TestPostgres(t *testing.T) {
 	}
 
 	// Start the infrastructure using Docker Compose.
-	// The infrastructure is defined in the `infra.yml` file.
-	opts := &docker.Options{WorkingDir: DockerWorkingDirectory}
-	_, err := docker.RunDockerComposeE(t, opts, "-f", "infra.yml", "up", "--build", "-d", "--wait")
+	// The infrastructure is defined in the `compose.yaml` file.
+	opts := &docker.Options{WorkingDir: DockerWorkingDirectory + "/infra"}
+	_, err := docker.RunDockerComposeE(t, opts, "up", "--build", "-d", "--wait")
 	require.NoError(t, err)
 
 	testExtractBlocksAndTxs(t)
@@ -45,7 +45,7 @@ func TestPostgres(t *testing.T) {
 
 	t.Cleanup(func() {
 		// Stop the infrastructure using Docker Compose.
-		_, err := docker.RunDockerComposeE(t, opts, "-f", "infra.yml", "down", "-v")
+		_, err := docker.RunDockerComposeE(t, opts, "down", "-v")
 		require.NoError(t, err)
 	})
 }
@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 29 as defined in the `infra.yml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 29)
+		// The number of transactions is 31 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 31)
 	})
 }
 
@@ -153,6 +153,36 @@ func testReindex(t *testing.T) {
 		require.NotEmpty(t, newBlock3)
 		require.NotEmpty(t, newBlock3[0]["data"])
 		require.Equal(t, block3, newBlock3)
+	})
+}
+
+func TestPrometheusMetrics(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
+	opts := &docker.Options{WorkingDir: DockerWorkingDirectory + "/yaci"}
+	_, err := docker.RunDockerComposeE(t, opts, "up", "--build", "-d", "--wait")
+	require.NoError(t, err)
+
+	testPrometheusMetrics(t)
+
+	t.Cleanup(func() {
+		_, err := docker.RunDockerComposeE(t, opts, "down", "-v")
+		require.NoError(t, err)
+	})
+}
+
+func testPrometheusMetrics(t *testing.T) {
+	t.Run("TestPrometheusMetrics", func(t *testing.T) {
+		resp, err := resty.New().R().Get("http://localhost:2112/metrics")
+		require.NoError(t, err)
+		require.Equal(t, 200, resp.StatusCode())
+		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_user{source=\"postgres\"} 2")
+		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_group{source=\"postgres\"} 2")
+		require.Contains(t, string(resp.Body()), "yaci_transactions_total_count{source=\"postgres\"} 31")
+		require.Contains(t, string(resp.Body()), "yaci_tokenomics_total_burn_amount{source=\"postgres\"} 123")
+		require.Contains(t, string(resp.Body()), "yaci_tokenomics_total_payout_amount{source=\"postgres\"} 7.54321e+06")
 	})
 }
 
