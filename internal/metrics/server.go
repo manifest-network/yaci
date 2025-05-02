@@ -7,14 +7,14 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/liftedinit/yaci/internal/metrics/collectors"
+	"github.com/liftedinit/yaci/internal/client"
+	grpcPromCollectors "github.com/liftedinit/yaci/internal/metrics/collectors/grpc"
+	sqlPromCollectors "github.com/liftedinit/yaci/internal/metrics/collectors/sql"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	_ "github.com/liftedinit/yaci/internal/metrics/collectors" // Import all collectors
 )
 
-func CreateMetricsServer(db *sql.DB, bech32Prefix, addr string) (*http.Server, error) {
+func CreateMetricsServer(db *sql.DB, grpcClient *client.GRPCClient, bech32Prefix, addr string) (*http.Server, error) {
 	if db == nil {
 		return nil, errors.New("database connection is nil")
 	}
@@ -37,10 +37,20 @@ func CreateMetricsServer(db *sql.DB, bech32Prefix, addr string) (*http.Server, e
 		return nil, errors.New("invalid port number")
 	}
 
-	allCollectors, err := collectors.DefaultRegistry.CreateCollectors(db, bech32Prefix)
+	sqlCollectors, err := sqlPromCollectors.DefaultSqlRegistry.CreateSqlCollectors(db, bech32Prefix)
 	if err != nil {
-		return nil, err
+		slog.Error("Failed to create SQL collectors", "error", err)
+		sqlCollectors = []prometheus.Collector{}
 	}
+
+	grpcCollectors, err := grpcPromCollectors.DefaultGrpcRegistry.CreateGrpcCollectors(grpcClient)
+	if err != nil {
+		// Allow server to start even if gRPC collectors fail, but log the error.
+		slog.Error("Failed to create gRPC collectors", "error", err)
+		grpcCollectors = []prometheus.Collector{} // Ensure slice is not nil
+	}
+
+	allCollectors := append(sqlCollectors, grpcCollectors...)
 
 	for _, c := range allCollectors {
 		if err := prometheus.Register(c); err != nil {
@@ -72,8 +82,12 @@ func listen(addr string) (*http.Server, chan error) {
 	errChan := make(chan error)
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			slog.Error("Failed to start metrics server", "error", err)
-			errChan <- err
+			if !errors.Is(err, http.ErrServerClosed) {
+				slog.Error("Failed to start metrics server", "error", err)
+				errChan <- err
+			} else {
+				slog.Info("Metrics server closed")
+			}
 		}
 	}()
 

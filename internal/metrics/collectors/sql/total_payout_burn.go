@@ -1,6 +1,6 @@
 //go:build manifest
 
-package collectors
+package sql
 
 import (
 	"database/sql"

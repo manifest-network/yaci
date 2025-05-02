@@ -47,7 +47,7 @@ var PostgresRunE = func(cmd *cobra.Command, args []string) error {
 		slog.Debug("Bech32 prefix retrieved", "bech32_prefix", bech32Prefix)
 
 		db := stdlib.OpenDBFromPool(outputHandler.GetPool())
-		_, err = metrics.CreateMetricsServer(db, bech32Prefix, extractConfig.PrometheusListenAddr)
+		_, err = metrics.CreateMetricsServer(db, gRPCClient, bech32Prefix, extractConfig.PrometheusListenAddr)
 		if err != nil {
 			return fmt.Errorf("failed to start metrics server: %w", err)
 		}
