@@ -35,23 +35,28 @@ function check_addr_txs() {
 
   if [ "${addr_txs_len}" -ne "${expected_txs_len}" ]; then
     printf "  \\e[31m\\u2717\\e[0m Invalid number of transactions. Expected: %s, Found: %s\\n" "$expected_txs_len" "$addr_txs_len"
-    return 1
+    exit 1
   fi
 
   printf "  \\e[32m\\u2713\\e[0m Transactions found: %s\\n" "$addr_txs_len"
 
   for tx_check in "${tx_checks[@]}"; do
     IFS=":" read -r memo nested <<< "$tx_check"
-    check_tx "$memo_and_nested" "$memo" "$nested" || return 1
+    check_tx "$memo_and_nested" "$memo" "$nested" || exit 1
   done
 }
 
 # Address-specific configurations
 declare -A ADDRESS_EXPECTED_TXS=(
-  ["${ADDR1}"]="32"
+  ["${ADDR1}"]="33"
   ["${ADDR2}"]="11"
   ["${USER_GROUP_ADDRESS}"]="15"
   ["${POA_ADMIN_ADDRESS}"]="8"
+  ["${VESTING_ADDR}"]="1"
+)
+
+declare -a VESTING_TX_CHECKS=(
+  "tx-create-periodic-vesting-account:false"
 )
 
 declare -a ADDRESS1_TX_CHECKS=(
@@ -86,6 +91,7 @@ declare -a ADDRESS1_TX_CHECKS=(
   "tx-send-proposal-error-submit:false"
   "tx-send-proposal-error-vote:false"
   "tx-send-proposal-error-exec:false"
+  "tx-create-periodic-vesting-account:false"
 )
 
 declare -a ADDRESS2_TX_CHECKS=(
@@ -136,6 +142,7 @@ declare -A ADDRESS_TX_CHECKS=(
   ["${ADDR2}"]="ADDRESS2_TX_CHECKS[@]"
   ["${USER_GROUP_ADDRESS}"]="USER_GROUP_ADDRESS_TX_CHECKS[@]"
   ["${POA_ADMIN_ADDRESS}"]="POA_ADMIN_ADDRESS_TX_CHECKS[@]"
+  ["${VESTING_ADDR}"]="VESTING_TX_CHECKS[@]"
 )
 
 for addr in "${!ADDRESS_EXPECTED_TXS[@]}"; do

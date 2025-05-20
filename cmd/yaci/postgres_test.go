@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 31 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 31)
+		// The number of transactions is 32 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 32)
 	})
 }
 
@@ -178,11 +178,13 @@ func testPrometheusMetrics(t *testing.T) {
 		resp, err := resty.New().R().Get("http://localhost:2112/metrics")
 		require.NoError(t, err)
 		require.Equal(t, 200, resp.StatusCode())
-		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_user{source=\"postgres\"} 2")
-		require.Contains(t, string(resp.Body()), "yaci_addresses_total_unique_group{source=\"postgres\"} 2")
-		require.Contains(t, string(resp.Body()), "yaci_transactions_total_count{source=\"postgres\"} 31")
-		require.Contains(t, string(resp.Body()), "yaci_tokenomics_total_burn_amount{source=\"postgres\"} 123")
-		require.Contains(t, string(resp.Body()), "yaci_tokenomics_total_payout_amount{source=\"postgres\"} 7.54321e+06")
+		body := string(resp.Body())
+		require.Contains(t, body, "yaci_addresses_total_unique_user{source=\"postgres\"} 3")
+		require.Contains(t, body, "yaci_addresses_total_unique_group{source=\"postgres\"} 2")
+		require.Contains(t, body, "yaci_transactions_total_count{source=\"postgres\"} 32")
+		require.Contains(t, body, "yaci_tokenomics_total_burn_amount{source=\"postgres\"} 123")
+		require.Contains(t, body, "yaci_tokenomics_total_payout_amount{source=\"postgres\"} 7.54321e+06")
+		require.Contains(t, body, "yaci_locked_tokens_count{amount=\"2000000000\",denom=\"umfx\",source=\"postgres\"} 1")
 	})
 }
 

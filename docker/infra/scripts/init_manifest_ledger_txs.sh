@@ -34,6 +34,9 @@ function run_proposal() {
 run_tx tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} --from $KEY --note "tx-send-to-poa-admin"
 run_tx tx bank multi-send $ADDR1 $ADDR2 ${POA_ADMIN_ADDRESS} 10000${DENOM} --from $KEY --note "tx-multi-send-to-poa-admin"
 
+## Vesting
+run_tx tx vesting create-periodic-vesting-account ${VESTING_ADDR} /generated/vesting_period.json --from $KEY --note "tx-create-periodic-vesting-account"
+
 ## Tokenfactory module
 run_tx tx tokenfactory create-denom ufoobar --from $KEY --note "tx-create-denom-ufoobar"
 run_tx tx tokenfactory modify-metadata factory/$ADDR1/ufoobar FOOBAR "This is the foobar token" 6 --from $KEY --note "tx-modify-metadata-foobar"

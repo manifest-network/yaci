@@ -1,0 +1,17 @@
+{
+    "start_time": ${START_TIME},
+    "periods":[
+        {
+            "coins": "1000000000umfx",
+            "length_seconds": 1
+        },
+        {
+            "coins": "1000000000umfx",
+            "length_seconds": 86400
+        },
+        {
+            "coins": "1000000000umfx",
+            "length_seconds": 86400
+        }
+    ]
+}
