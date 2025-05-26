@@ -52,6 +52,19 @@ services:
     env_file: ../.env
     command: /usr/local/bin/generate_proposals.sh
 
+  manifest-generate-templates:
+    restart: no
+    build:
+        context: ..
+        dockerfile: Dockerfile.base
+    volumes:
+      - ./templates:/templates
+      - manifest-template-data:/generated
+      - ./scripts/generate_templates.sh:/usr/local/bin/generate_templates.sh:ro
+    entrypoint: ["/bin/bash", "-c"]
+    env_file: ../.env
+    command: /usr/local/bin/generate_templates.sh
+
   # Setup some transactions on the blockchain
   manifest-ledger-tx:
     restart: no
@@ -61,6 +74,8 @@ services:
       - manifest-ledger-data:/persistent
       - tx-count:/tx-count
       - manifest-proposals-data:/proposals
+      - manifest-template-data:/generated
+      - ./templates:/templates
       - ./scripts/init_manifest_ledger_txs.sh:/usr/local/bin/init_manifest_ledger_txs.sh:ro
     entrypoint: ["/bin/bash", "-c"]
     env_file: ../.env
@@ -69,6 +84,8 @@ services:
       manifest-ledger:
         condition: service_healthy
       manifest-generate-proposals:
+        condition: service_completed_successfully
+      manifest-generate-templates:
         condition: service_completed_successfully
 
   postgrest:
@@ -90,6 +107,7 @@ volumes:
   manifest-ledger-bin:
   manifest-ledger-data:
   manifest-proposals-data:
+  manifest-template-data:
   postgres-data:
   tx-count:
 
