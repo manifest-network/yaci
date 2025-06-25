@@ -1,6 +1,6 @@
 version: 2.1
 
-GO_VERSION: &go_version '1.23.8'
+GO_VERSION: &go_version '1.23.10'
 GORELEASER_VERSION: &goreleaser_version 'v1.26.2'
 GO_MOD_CACHE_KEY: &go_mod_cache_key 'go-mod-1'
 
