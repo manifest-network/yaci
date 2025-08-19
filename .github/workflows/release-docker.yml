@@ -2,7 +2,7 @@ name: Push Docker Images
 
 on:
   release:
-    types: [published, created, edited]
+    types: [published, created]
   push:
     tags:
     - '**'
