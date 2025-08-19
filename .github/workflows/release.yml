@@ -1,0 +1,48 @@
+name: Release
+
+# Triggers on tags like v1.2.3 or 1.2.3 (also matches pre-releases, e.g., v1.2.3-alpha.8)
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+      - '*.*.*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: GoReleaser
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write   # create GitHub Releases
+      packages: write   # if you also publish containers/packages via GoReleaser
+
+    env:
+      GO_VERSION: '1.24.6'
+      GORELEASER_VERSION: 'v1.26.2'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # GoReleaser needs tags/history
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: GoReleaser check
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: ${{ env.GORELEASER_VERSION }}
+          args: check
+
+      - name: Release
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # provided by GitHub
