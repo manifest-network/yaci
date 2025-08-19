@@ -1,8 +1,8 @@
 # yaci
 
-[![build](https://img.shields.io/circleci/build/github/liftedinit/yaci/main)](https://app.circleci.com/pipelines/github/liftedinit/yaci)
-[![coverage](https://img.shields.io/codecov/c/github/liftedinit/yaci)](https://app.codecov.io/gh/liftedinit/yaci)
-[![Go Report Card](https://goreportcard.com/badge/github.com/liftedinit/yaci)](https://goreportcard.com/report/github.com/liftedinit/yaci)
+[![build](https://img.shields.io/circleci/build/github/manifest-network/yaci/main)](https://app.circleci.com/pipelines/github/manifest-network/yaci)
+[![coverage](https://img.shields.io/codecov/c/github/manifest-network/yaci)](https://app.codecov.io/gh/manifest-network/yaci)
+[![Go Report Card](https://goreportcard.com/badge/github.com/manifest-network/yaci)](https://goreportcard.com/report/github.com/manifest-network/yaci)
 
 `yaci` is a command-line tool that connects to a gRPC server and extracts blockchain data.
 
@@ -12,7 +12,7 @@ Off-chain indexing of block & transaction data.
 
 ## Requirements
 
-- Go 1.23.5
+- Go 1.24.6
 - Docker & Docker Compose (optional)
 - CosmosSDK >= 0.50 (chain to index)
 
@@ -32,7 +32,7 @@ Off-chain indexing of block & transaction data.
 To install the `yaci` tool, you need to have Go installed on your system. Then, you can use the following command to install `yaci`:
 
 ```sh
-go install github.com/liftedinit/yaci@latest
+go install github.com/manifest-network/yaci@latest
 ```
 
 The `yaci` binary will be installed in the `$GOPATH/bin` directory.
@@ -151,7 +151,7 @@ The following PostgreSQL functions are available:
 The `yaci` tool parameters can be configured from the following sources
 
 - Environment variables (prefixed with `YACI_`)
-- Configuration file (`config.yaml`, `config.json`, `config.toml`, `config.hcl`, [~~`config.env`~~](https://github.com/liftedinit/yaci/issues/15) )
+- Configuration file (`config.yaml`, `config.json`, `config.toml`, `config.hcl`, [~~`config.env`~~](https://github.com/manifest-network/yaci/issues/15) )
 - Command-line flags
 
 The command-line flags have the highest priority, followed by the environment variables, and then the configuration file.

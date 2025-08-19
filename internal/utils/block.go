@@ -3,7 +3,7 @@ package utils
 import (
 	"strconv"
 
-	"github.com/liftedinit/yaci/internal/client"
+	"github.com/manifest-network/yaci/internal/client"
 	"github.com/pkg/errors"
 )
 

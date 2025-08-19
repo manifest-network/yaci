@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/liftedinit/yaci/internal/client"
-	"github.com/liftedinit/yaci/internal/config"
-	"github.com/liftedinit/yaci/internal/models"
-	"github.com/liftedinit/yaci/internal/output"
-	"github.com/liftedinit/yaci/internal/utils"
+	"github.com/manifest-network/yaci/internal/client"
+	"github.com/manifest-network/yaci/internal/config"
+	"github.com/manifest-network/yaci/internal/models"
+	"github.com/manifest-network/yaci/internal/output"
+	"github.com/manifest-network/yaci/internal/utils"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/sync/errgroup"
 )

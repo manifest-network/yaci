@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/liftedinit/yaci/internal/models"
+	"github.com/manifest-network/yaci/internal/models"
 )
 
 //go:embed migrations/*

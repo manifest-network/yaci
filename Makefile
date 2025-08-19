@@ -1,5 +1,5 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-BUILD_FLAGS := -ldflags "-X github.com/liftedinit/yaci/cmd/yaci.Version=$(VERSION)" -tags manifest
+BUILD_FLAGS := -ldflags "-X github.com/manifest-network/yaci/cmd/yaci.Version=$(VERSION)" -tags manifest
 
 #### Build ####
 build: ## Build the binary
@@ -23,7 +23,7 @@ test-e2e: ## Run end-to-end tests
 COV_ROOT="/tmp/yaci-coverage"
 COV_UNIT="${COV_ROOT}/unit"
 COV_E2E="${COV_ROOT}/e2e"
-COV_PKG="github.com/liftedinit/yaci/..."
+COV_PKG="github.com/manifest-network/yaci/..."
 
 coverage: ## Run tests with coverage
 	@echo "--> Creating GOCOVERDIR"
@@ -88,7 +88,7 @@ goimports_version=v0.26.0
 format: ## Run formatter (goimports)
 	@echo "--> Running goimports"
 	@go install golang.org/x/tools/cmd/goimports@$(goimports_version)
-	@find . -name '*.go' -exec goimports -w -local github.com/liftedinit/yaci {} \;
+	@find . -name '*.go' -exec goimports -w -local github.com/manifest-network/yaci {} \;
 
 .PHONY: format
 

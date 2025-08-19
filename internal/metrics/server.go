@@ -7,11 +7,11 @@ import (
 	"net"
 	"net/http"
 
-	"github.com/liftedinit/yaci/internal/metrics/collectors"
+	"github.com/manifest-network/yaci/internal/metrics/collectors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	_ "github.com/liftedinit/yaci/internal/metrics/collectors" // Import all collectors
+	_ "github.com/manifest-network/yaci/internal/metrics/collectors" // Import all collectors
 )
 
 func CreateMetricsServer(db *sql.DB, bech32Prefix, addr string) (*http.Server, error) {

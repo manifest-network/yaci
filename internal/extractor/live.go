@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/liftedinit/yaci/internal/client"
-	"github.com/liftedinit/yaci/internal/output"
-	"github.com/liftedinit/yaci/internal/utils"
+	"github.com/manifest-network/yaci/internal/client"
+	"github.com/manifest-network/yaci/internal/output"
+	"github.com/manifest-network/yaci/internal/utils"
 )
 
 // extractLiveBlocksAndTransactions monitors the chain and processes new blocks as they are produced.

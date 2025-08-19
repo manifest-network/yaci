@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/liftedinit/yaci/internal/client"
-	"github.com/liftedinit/yaci/internal/config"
-	"github.com/liftedinit/yaci/internal/output"
-	"github.com/liftedinit/yaci/internal/utils"
+	"github.com/manifest-network/yaci/internal/client"
+	"github.com/manifest-network/yaci/internal/config"
+	"github.com/manifest-network/yaci/internal/output"
+	"github.com/manifest-network/yaci/internal/utils"
 )
 
 const (
@@ -55,7 +55,7 @@ func setBlockRange(gRPCClient *client.GRPCClient, outputHandler output.OutputHan
 	if cfg.ReIndex {
 		slog.Info("Reindexing entire database...")
 		// TODO: Get the earliest block from the gRPC server
-		// See https://github.com/liftedinit/yaci/issues/28
+		// See https://github.com/manifest-network/yaci/issues/28
 		cfg.BlockStart = 1
 		earliestLocalBlock, err := outputHandler.GetEarliestBlock(gRPCClient.Ctx)
 		if err != nil {
@@ -69,7 +69,7 @@ func setBlockRange(gRPCClient *client.GRPCClient, outputHandler output.OutputHan
 
 	if cfg.BlockStart == 0 {
 		// TODO: Get the earliest block from the gRPC server
-		// See https://github.com/liftedinit/yaci/issues/28
+		// See https://github.com/manifest-network/yaci/issues/28
 		cfg.BlockStart = 1
 		latestLocalBlock, err := outputHandler.GetLatestBlock(gRPCClient.Ctx)
 		if err != nil {

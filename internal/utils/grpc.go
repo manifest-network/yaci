@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/liftedinit/yaci/internal/client"
+	"github.com/manifest-network/yaci/internal/client"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/reflect/protoreflect"

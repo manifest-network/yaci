@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/liftedinit/yaci/internal/reflection"
+	"github.com/manifest-network/yaci/internal/reflection"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
