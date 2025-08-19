@@ -1,7 +1,7 @@
 # yaci
 
-[![build](https://img.shields.io/circleci/build/github/manifest-network/yaci/main)](https://app.circleci.com/pipelines/github/manifest-network/yaci)
-[![coverage](https://img.shields.io/codecov/c/github/manifest-network/yaci)](https://app.codecov.io/gh/manifest-network/yaci)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/manifest-network/yaci/ci.yml)
+[![codecov](https://codecov.io/github/manifest-network/yaci/graph/badge.svg?token=E0fP14l7Ct)](https://codecov.io/github/manifest-network/yaci)
 [![Go Report Card](https://goreportcard.com/badge/github.com/manifest-network/yaci)](https://goreportcard.com/report/github.com/manifest-network/yaci)
 
 `yaci` is a command-line tool that connects to a gRPC server and extracts blockchain data.
