@@ -6,14 +6,14 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/liftedinit/yaci/internal/metrics"
-	"github.com/liftedinit/yaci/internal/output/postgresql"
-	"github.com/liftedinit/yaci/internal/utils"
+	"github.com/manifest-network/yaci/internal/metrics"
+	"github.com/manifest-network/yaci/internal/output/postgresql"
+	"github.com/manifest-network/yaci/internal/utils"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/liftedinit/yaci/internal/config"
-	"github.com/liftedinit/yaci/internal/extractor"
+	"github.com/manifest-network/yaci/internal/config"
+	"github.com/manifest-network/yaci/internal/extractor"
 )
 
 var PostgresRunE = func(cmd *cobra.Command, args []string) error {

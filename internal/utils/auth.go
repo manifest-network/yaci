@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/liftedinit/yaci/internal/client"
+	"github.com/manifest-network/yaci/internal/client"
 )
 
 const bech32PrefixMethod = "cosmos.auth.v1beta1.Query.Bech32Prefix"

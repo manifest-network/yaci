@@ -3,7 +3,7 @@ package output
 import (
 	"context"
 
-	"github.com/liftedinit/yaci/internal/models"
+	"github.com/manifest-network/yaci/internal/models"
 )
 
 type OutputHandler interface {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/liftedinit/yaci/cmd/yaci"
+	"github.com/manifest-network/yaci/cmd/yaci"
 )
 
 func TestExtractCmd(t *testing.T) {

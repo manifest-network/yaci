@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
-	"github.com/liftedinit/yaci/internal/metrics"
-	"github.com/liftedinit/yaci/internal/metrics/collectors"
+	"github.com/manifest-network/yaci/internal/metrics"
+	"github.com/manifest-network/yaci/internal/metrics/collectors"
 	"github.com/stretchr/testify/require"
 )
 

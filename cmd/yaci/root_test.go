@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/liftedinit/yaci/cmd/yaci"
+	"github.com/manifest-network/yaci/cmd/yaci"
 )
 
 func executeCommand(root *cobra.Command, args ...string) (output string, err error) {

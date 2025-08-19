@@ -7,7 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/descriptorpb"
 
-	"github.com/liftedinit/yaci/internal/reflection"
+	"github.com/manifest-network/yaci/internal/reflection"
 )
 
 func TestBuildFileDescriptorSet(t *testing.T) {

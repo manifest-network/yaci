@@ -6,9 +6,9 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/liftedinit/yaci/internal/client"
-	"github.com/liftedinit/yaci/internal/models"
-	"github.com/liftedinit/yaci/internal/utils"
+	"github.com/manifest-network/yaci/internal/client"
+	"github.com/manifest-network/yaci/internal/models"
+	"github.com/manifest-network/yaci/internal/utils"
 )
 
 func extractTransactions(gRPCClient *client.GRPCClient, data map[string]interface{}, maxRetries uint) ([]*models.Transaction, error) {

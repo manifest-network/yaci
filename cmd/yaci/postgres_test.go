@@ -11,8 +11,8 @@ import (
 	"github.com/gruntwork-io/terratest/modules/docker"
 	"github.com/stretchr/testify/require"
 
-	"github.com/liftedinit/yaci/cmd/yaci"
-	"github.com/liftedinit/yaci/internal/testutil"
+	"github.com/manifest-network/yaci/cmd/yaci"
+	"github.com/manifest-network/yaci/internal/testutil"
 )
 
 const (

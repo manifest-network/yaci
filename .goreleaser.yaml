@@ -24,7 +24,7 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X github.com/liftedinit/yaci/cmd/yaci.Version={{ .Version }}
+      - -X github.com/manifest-network/yaci/cmd/yaci.Version={{ .Version }}
 
 archives:
   - format: tar.gz
