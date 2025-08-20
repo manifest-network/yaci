@@ -1,4 +1,8 @@
-# yaci
+<h1 align="center">yaci</h1>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/cosmos/chain-registry/00df6ff89abd382f9efe3d37306c353e2bd8d55c/manifest/images/manifest.png" alt="Manifest Network" width="100"/>
+</p>
 
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/manifest-network/yaci/ci.yml)
 [![codecov](https://codecov.io/github/manifest-network/yaci/graph/badge.svg?token=E0fP14l7Ct)](https://codecov.io/github/manifest-network/yaci)
