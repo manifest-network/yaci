@@ -8,6 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// TotalPayoutBurnQuery expected format of the cosmwasm event attribute for burn amounts, e.g., 123456umfx
 const TotalPayoutBurnQuery = `
 		WITH payout_amount AS (
 		  SELECT
