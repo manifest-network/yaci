@@ -22,10 +22,33 @@ const TotalPayoutBurnQuery = `
 		  FROM api.messages_main m
 		  CROSS JOIN LATERAL jsonb_array_elements(m.metadata->'burnCoins') AS pp(element)
 		  WHERE type = '/liftedinit.manifest.v1.MsgBurnHeldBalance'
-		)
+		),
+		burn_amount_contract AS (
+		  WITH burn_events AS (
+		    SELECT
+		  	e.id,
+		  	e.event_index,
+		  	MAX(CASE WHEN e.attr_key = 'amount' THEN e.attr_value END) AS amount_raw,
+		  	MAX(e.msg_index) AS msg_index
+		    FROM api.events_main e
+		    WHERE e.event_type = 'burn'
+		    GROUP BY e.id, e.event_index
+		  )
+		  SELECT COALESCE(SUM((rm.captures)[1]::numeric), 0) AS amount
+		  FROM burn_events b
+		  JOIN api.messages_main m
+		    ON m.id = b.id
+		   AND m.message_index = b.msg_index
+		   AND m.type = '/cosmwasm.wasm.v1.MsgExecuteContract'
+		  JOIN LATERAL regexp_matches(
+		    b.amount_raw,
+		    '^([0-9]+)([[:alnum:]_\/\.]+)$'
+		  ) AS rm(captures) ON TRUE
+		  WHERE (rm.captures)[2] = 'umfx'
+	    )
 		SELECT 
 		  (SELECT amount FROM payout_amount) AS payout_amount,
-		  (SELECT amount FROM burn_amount) AS burn_amount
+		  (SELECT amount FROM burn_amount) + (SELECT amount FROM burn_amount_contract) AS burn_amount
 	`
 
 type TotalPayoutBurnCollector struct {
