@@ -30,6 +30,7 @@ services:
         - ./scripts/init_manifest_ledger.sh:/usr/local/bin/init_manifest_ledger.sh:ro
     ports:
       - "9090:9090"
+      - "26657:26657"
     entrypoint: ["/bin/bash", "-c"]
     env_file: ../.env
     command: /usr/local/bin/init_manifest_ledger.sh
