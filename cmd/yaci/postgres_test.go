@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 32 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 32)
+		// The number of transactions is 38 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 38)
 	})
 }
 
@@ -180,8 +180,8 @@ func testPrometheusMetrics(t *testing.T) {
 		require.Equal(t, 200, resp.StatusCode())
 		body := string(resp.Body())
 		require.Contains(t, body, "yaci_addresses_total_unique_user{source=\"postgres\"} 3")
-		require.Contains(t, body, "yaci_addresses_total_unique_group{source=\"postgres\"} 2")
-		require.Contains(t, body, "yaci_transactions_total_count{source=\"postgres\"} 32")
+		require.Contains(t, body, "yaci_addresses_total_unique_group{source=\"postgres\"} 3")
+		require.Contains(t, body, "yaci_transactions_total_count{source=\"postgres\"} 38")
 		// 3000000umfx were burned by the MFX to PWR conversion
 		// 123umfx were burned by a POA proposal
 		require.Contains(t, body, "yaci_tokenomics_total_burn_amount{source=\"postgres\"} 3.000123e+06")
