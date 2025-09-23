@@ -67,6 +67,14 @@ run_tx tx tokenfactory change-admin factory/$ADDR1/ufoobar $ADDR2 --from $KEY --
 run_proposal "payout.json" "$ADDR1" "tx-payout-proposal" --from $KEY
 run_proposal "burn.json" "$ADDR1" "tx-burn-proposal" --from $KEY
 
+# Submit and withdraw payout and burn proposals to make sure collector works properly
+run_tx tx group submit-proposal "/proposals/payout.json" --note "tx-payout-proposal-submit-2" --from $KEY
+run_tx tx group withdraw-proposal $PROPOSAL_ID $ADDR1 --note "tx-payout-proposal-withdraw" --from $KEY
+PROPOSAL_ID=$((PROPOSAL_ID + 1))
+run_tx tx group submit-proposal "/proposals/burn.json" --note "tx-burn-proposal-submit-2" --from $KEY
+run_tx tx group withdraw-proposal $PROPOSAL_ID $ADDR1 --note "tx-burn-proposal-withdraw" --from $KEY
+PROPOSAL_ID=$((PROPOSAL_ID + 1))
+
 ### Group module
 echo ${GROUP_MEMBERS} > members.json && cat members.json
 echo ${DECISION_POLICY} > policy.json && cat policy.json

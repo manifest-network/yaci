@@ -48,10 +48,10 @@ function check_addr_txs() {
 
 # Address-specific configurations
 declare -A ADDRESS_EXPECTED_TXS=(
-  ["${ADDR1}"]="39"
-  ["${ADDR2}"]="11"
+  ["${ADDR1}"]="43"
+  ["${ADDR2}"]="12"
   ["${USER_GROUP_ADDRESS}"]="15"
-  ["${POA_ADMIN_ADDRESS}"]="12"
+  ["${POA_ADMIN_ADDRESS}"]="14"
   ["${VESTING_ADDR}"]="1"
 )
 
@@ -98,6 +98,10 @@ declare -a ADDRESS1_TX_CHECKS=(
   "tx-grant-proposal-vote:false"
   "tx-grant-proposal-exec:false"
   "tx-mint-from-converter:false"
+  "tx-payout-proposal-submit-2:false"
+  "tx-payout-proposal-withdraw:false"
+  "tx-burn-proposal-submit-2:false"
+  "tx-burn-proposal-withdraw:false"
 )
 
 declare -a ADDRESS2_TX_CHECKS=(
@@ -143,6 +147,8 @@ declare -a POA_ADMIN_ADDRESS_TX_CHECKS=(
   "tx-burn-proposal-exec:false"
   "tx-grant-proposal-submit:false"
   "tx-grant-proposal-submit:true"
+  "tx-payout-proposal-submit-2:false"
+  "tx-burn-proposal-submit-2:false"
 )
 
 declare -A ADDRESS_TX_CHECKS=(
