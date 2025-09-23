@@ -123,6 +123,22 @@ erDiagram
     serial id
     jsonb data
   }
+  "api.events_raw" {
+    varchar(64) id
+    bigint event_index
+    jsonb data
+  }
+  "api.events_main" {
+    varchar(64) id
+    bigint event_index
+    bigint attr_index
+    text event_type
+    text attr_key
+    text attr_value
+    bigint msg_index
+  }
+  "api.transactions_raw" ||--o{ "api.events_raw": "trigger insert/update"
+  "api.events_raw" ||--|| "api.events_main" : "trigger insert/update"
 ```
 
 #### Usage

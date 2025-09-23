@@ -5,6 +5,11 @@ set -e
 
 TX_COUNT=0
 PROPOSAL_ID=1
+CONTRACT_VERSION=v0.1.0
+
+# Download the wasm contract
+echo "Downloading converter.wasm contract version ${CONTRACT_VERSION}"
+curl -sL https://github.com/manifest-network/manifest-contracts/releases/download/${CONTRACT_VERSION}/converter.wasm --output /tmp/converter.wasm
 
 # We want to keep track of the transaction count in a file; check if the directory containing the file exists
 if [ -d "${TX_COUNT_DIR}" ]; then
@@ -30,6 +35,20 @@ function run_proposal() {
   TX_COUNT=$((TX_COUNT + 3))
 }
 
+## Wasm module
+echo "-> Storing converter.wasm contract"
+run_tx tx wasm store /tmp/converter.wasm --from $KEY --note "tx-store-converter"
+
+echo "-> Instantiating converter.wasm contract"
+run_tx tx wasm instantiate 1 '{"admin":"'${POA_ADMIN_ADDRESS}'","poa_admin":"'${POA_ADMIN_ADDRESS}'","rate":"2","source_denom":"umfx","target_denom":"factory/'${POA_ADMIN_ADDRESS}'/upwr","paused":false}' --from $KEY --admin $ADDR1 --label "converter" --note "tx-instantiate-converter"
+
+echo "-> Granting converter contract mint/burn permissions"
+run_proposal "grant.json" "$ADDR1" "tx-grant-proposal" --from $KEY
+
+# Converter contract address is `manifest14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9s4zfs7u`
+echo "-> Converting 3 MFX to 6 PWR"
+run_tx tx wasm execute ${CONVERT_WASM_ADDRESS} '{"convert":{}}' --from $KEY --note "tx-mint-from-converter" --amount 3000000umfx
+
 ## Bank module
 run_tx tx bank send $ADDR1 ${POA_ADMIN_ADDRESS} 10000${DENOM} --from $KEY --note "tx-send-to-poa-admin"
 run_tx tx bank multi-send $ADDR1 $ADDR2 ${POA_ADMIN_ADDRESS} 10000${DENOM} --from $KEY --note "tx-multi-send-to-poa-admin"
@@ -47,6 +66,14 @@ run_tx tx tokenfactory change-admin factory/$ADDR1/ufoobar $ADDR2 --from $KEY --
 ## Manifest module
 run_proposal "payout.json" "$ADDR1" "tx-payout-proposal" --from $KEY
 run_proposal "burn.json" "$ADDR1" "tx-burn-proposal" --from $KEY
+
+# Submit and withdraw payout and burn proposals to make sure collector works properly
+run_tx tx group submit-proposal "/proposals/payout.json" --note "tx-payout-proposal-submit-2" --from $KEY
+run_tx tx group withdraw-proposal $PROPOSAL_ID $ADDR1 --note "tx-payout-proposal-withdraw" --from $KEY
+PROPOSAL_ID=$((PROPOSAL_ID + 1))
+run_tx tx group submit-proposal "/proposals/burn.json" --note "tx-burn-proposal-submit-2" --from $KEY
+run_tx tx group withdraw-proposal $PROPOSAL_ID $ADDR1 --note "tx-burn-proposal-withdraw" --from $KEY
+PROPOSAL_ID=$((PROPOSAL_ID + 1))
 
 ### Group module
 echo ${GROUP_MEMBERS} > members.json && cat members.json

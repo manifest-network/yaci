@@ -1,0 +1,33 @@
+{
+  "group_policy_address": "${POA_ADMIN_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/cosmos.authz.v1beta1.MsgGrant",
+      "granter": "${POA_ADMIN_ADDRESS}",
+      "grantee": "${CONVERT_WASM_ADDRESS}",
+      "grant": {
+        "authorization": {
+          "@type": "/cosmos.authz.v1beta1.GenericAuthorization",
+          "msg": "/osmosis.tokenfactory.v1beta1.MsgMint"
+        },
+        "expiration": "2030-01-01T00:00:00Z"
+      }
+    },
+    {
+      "@type": "/cosmos.authz.v1beta1.MsgGrant",
+      "granter": "${POA_ADMIN_ADDRESS}",
+      "grantee": "${CONVERT_WASM_ADDRESS}",
+      "grant": {
+        "authorization": {
+          "@type": "/cosmos.authz.v1beta1.GenericAuthorization",
+          "msg": "/liftedinit.manifest.v1.MsgBurnHeldBalance"
+        },
+        "expiration": "2030-01-01T00:00:00Z"
+      }
+    }
+  ],
+  "metadata": "",
+  "title": "Grant converter contract mint and burn permissions",
+  "summary": "We want to allow the converter contract to mint PWR and burn MFX for testing purposes",
+  "proposers": ["manifest1hj5fveer5cjtn4wd6wstzugjfdxzl0xp8ws9ct"]
+}

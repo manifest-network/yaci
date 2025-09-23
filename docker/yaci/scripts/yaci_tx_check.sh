@@ -48,10 +48,10 @@ function check_addr_txs() {
 
 # Address-specific configurations
 declare -A ADDRESS_EXPECTED_TXS=(
-  ["${ADDR1}"]="33"
-  ["${ADDR2}"]="11"
+  ["${ADDR1}"]="43"
+  ["${ADDR2}"]="12"
   ["${USER_GROUP_ADDRESS}"]="15"
-  ["${POA_ADMIN_ADDRESS}"]="8"
+  ["${POA_ADMIN_ADDRESS}"]="14"
   ["${VESTING_ADDR}"]="1"
 )
 
@@ -92,6 +92,16 @@ declare -a ADDRESS1_TX_CHECKS=(
   "tx-send-proposal-error-vote:false"
   "tx-send-proposal-error-exec:false"
   "tx-create-periodic-vesting-account:false"
+  "tx-store-converter:false"
+  "tx-instantiate-converter:false"
+  "tx-grant-proposal-submit:false"
+  "tx-grant-proposal-vote:false"
+  "tx-grant-proposal-exec:false"
+  "tx-mint-from-converter:false"
+  "tx-payout-proposal-submit-2:false"
+  "tx-payout-proposal-withdraw:false"
+  "tx-burn-proposal-submit-2:false"
+  "tx-burn-proposal-withdraw:false"
 )
 
 declare -a ADDRESS2_TX_CHECKS=(
@@ -135,6 +145,10 @@ declare -a POA_ADMIN_ADDRESS_TX_CHECKS=(
   "tx-burn-proposal-submit:false"
   "tx-burn-proposal-submit:true"
   "tx-burn-proposal-exec:false"
+  "tx-grant-proposal-submit:false"
+  "tx-grant-proposal-submit:true"
+  "tx-payout-proposal-submit-2:false"
+  "tx-burn-proposal-submit-2:false"
 )
 
 declare -A ADDRESS_TX_CHECKS=(
