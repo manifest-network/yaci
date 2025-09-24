@@ -1,0 +1,20 @@
+{
+  "group_policy_address": "${POA_ADMIN_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/osmosis.tokenfactory.v1beta1.MsgMint",
+      "sender": "${POA_ADMIN_ADDRESS}",
+      "mintToAddress": "${ADDR1}",
+      "amount": {
+        "denom": "factory/${POA_ADMIN_ADDRESS}/upwr",
+        "amount": "123"
+      }
+    }
+  ],
+  "metadata": "",
+  "title": "Mint 123 upwr",
+  "summary": "This proposal will mint 123 upwr",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "group_policy_address": "${POA_ADMIN_ADDRESS}",
+  "messages": [
+    {
+      "@type": "/osmosis.tokenfactory.v1beta1.MsgBurn",
+      "sender": "${POA_ADMIN_ADDRESS}",
+      "burnFromAddress": "${ADDR1}",
+      "amount": {
+        "denom": "factory/${POA_ADMIN_ADDRESS}/upwr",
+        "amount": "12"
+      }
+    }
+  ],
+  "metadata": "",
+  "title": "Burn 12 upwr",
+  "summary": "This proposal will mint 12 upwr",
+  "proposers": [
+    "${ADDR1}"
+  ]
+}
