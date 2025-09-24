@@ -1,5 +1,7 @@
 BEGIN;
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE IF NOT EXISTS api.events_raw (
   id          varchar(64) NOT NULL,  -- tx id
   event_index bigint      NOT NULL,  -- 0-based within the tx
@@ -15,7 +17,7 @@ CREATE TABLE IF NOT EXISTS api.events_main (
   attr_index  bigint      NOT NULL,   -- 0-based within the event
   event_type  text        NOT NULL,
   attr_key    text        NOT NULL,
-  attr_value  text        NOT NULL,
+  attr_value  text,
   msg_index   bigint,                 -- nullable; from 'msg_index' attribute if present
   PRIMARY KEY (id, event_index, attr_index),
   FOREIGN KEY (id, event_index) REFERENCES api.events_raw(id, event_index) ON DELETE CASCADE
@@ -23,7 +25,7 @@ CREATE TABLE IF NOT EXISTS api.events_main (
 
 CREATE INDEX IF NOT EXISTS events_main_type_idx          ON api.events_main (event_type);
 CREATE INDEX IF NOT EXISTS events_main_msg_idx           ON api.events_main (msg_index);
-CREATE INDEX IF NOT EXISTS events_main_attr_key_val_idx  ON api.events_main (attr_key, attr_value);
+CREATE INDEX IF NOT EXISTS events_main_attr_key_val_sha256_idx ON api.events_main (attr_key, digest(COALESCE(attr_value, ''), 'sha256'));
 CREATE INDEX IF NOT EXISTS events_main_id_idx            ON api.events_main (id);
 
 CREATE OR REPLACE FUNCTION api.extract_event_msg_index(ev jsonb)
