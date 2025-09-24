@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS api.events_main (
 
 CREATE INDEX IF NOT EXISTS events_main_type_idx          ON api.events_main (event_type);
 CREATE INDEX IF NOT EXISTS events_main_msg_idx           ON api.events_main (msg_index);
-CREATE INDEX IF NOT EXISTS events_main_attr_key_val_sha256_idx ON api.events_main (attr_key, digest(attr_value, 'sha256'));
+CREATE INDEX IF NOT EXISTS events_main_attr_key_val_sha256_idx ON api.events_main (attr_key, digest(COALESCE(attr_value, ''), 'sha256'));
 CREATE INDEX IF NOT EXISTS events_main_id_idx            ON api.events_main (id);
 
 CREATE OR REPLACE FUNCTION api.extract_event_msg_index(ev jsonb)
