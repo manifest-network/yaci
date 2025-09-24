@@ -15,7 +15,7 @@ const TotalPayoutBurnQuery = `
 		SELECT
 		  e.id,
 		  e.event_index,
-		  MAX(CASE WHEN e.attr_key = 'amount' THEN e.attr_value END) AS amount_raw,
+		  MAX(e.attr_value) FILTER (WHERE e.attr_key = 'amount') AS amount_raw,
 		  MAX(e.msg_index) AS msg_index
 		FROM api.events_main e
 		WHERE e.event_type = 'burn'
