@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 42 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 42)
+		// The number of transactions is 48 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 48)
 	})
 }
 
@@ -181,13 +181,16 @@ func testPrometheusMetrics(t *testing.T) {
 		body := string(resp.Body())
 		require.Contains(t, body, "yaci_addresses_total_unique_user{source=\"postgres\"} 3")
 		require.Contains(t, body, "yaci_addresses_total_unique_group{source=\"postgres\"} 3")
-		require.Contains(t, body, "yaci_transactions_total_count{source=\"postgres\"} 42")
+		require.Contains(t, body, "yaci_transactions_total_count{source=\"postgres\"} 48")
 		// 3000000umfx were burned by the MFX to PWR conversion
 		// 123umfx were burned by a POA proposal
 		require.Contains(t, body, "yaci_tokenomics_total_burn_amount{source=\"postgres\"} 3.000123e+06")
 		require.Contains(t, body, "yaci_tokenomics_total_payout_amount{source=\"postgres\"} 7.54321e+06")
 		// 6000000factory/.../upwr were minted by the MFX to PWR conversion
-		require.Contains(t, body, "yaci_tokenomics_total_pwr_minted_amount{source=\"postgres\"} 6e+06")
+		// 123factory/.../upwr were minted by a POA proposal
+		require.Contains(t, body, "yaci_tokenomics_total_pwr_minted_amount{source=\"postgres\"} 6.000123e+06")
+		// 12factory/.../upwr were burned by a POA proposal
+		require.Contains(t, body, "yaci_tokenomics_total_pwr_burned_amount{source=\"postgres\"} 12")
 		require.Contains(t, body, "yaci_locked_tokens_count{amount=\"2000000000\",denom=\"umfx\",source=\"postgres\"} 1")
 	})
 }
