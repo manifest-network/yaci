@@ -78,8 +78,8 @@ func NewTotalPwrMintedCollector(db *sql.DB) *TotalPwrMintedCollector {
 			prometheus.Labels{"source": "postgres"},
 		),
 		totalPwrBurnedAmount: prometheus.NewDesc(
-			prometheus.BuildFQName("yaci", "tokenomics", "total_pwr_burn_amount"),
-			"Total upwr burn",
+			prometheus.BuildFQName("yaci", "tokenomics", "total_pwr_burned_amount"),
+			"Total upwr burned",
 			nil,
 			prometheus.Labels{"source": "postgres"},
 		),

@@ -190,7 +190,7 @@ func testPrometheusMetrics(t *testing.T) {
 		// 123factory/.../upwr were minted by a POA proposal
 		require.Contains(t, body, "yaci_tokenomics_total_pwr_minted_amount{source=\"postgres\"} 6.000123e+06")
 		// 12factory/.../upwr were burned by a POA proposal
-		require.Contains(t, body, "yaci_tokenomics_total_pwr_burn_amount{source=\"postgres\"} 12")
+		require.Contains(t, body, "yaci_tokenomics_total_pwr_burned_amount{source=\"postgres\"} 12")
 		require.Contains(t, body, "yaci_locked_tokens_count{amount=\"2000000000\",denom=\"umfx\",source=\"postgres\"} 1")
 	})
 }

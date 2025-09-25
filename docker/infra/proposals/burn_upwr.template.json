@@ -13,7 +13,7 @@
   ],
   "metadata": "",
   "title": "Burn 12 upwr",
-  "summary": "This proposal will mint 12 upwr",
+  "summary": "This proposal will burn 12 upwr",
   "proposers": [
     "${ADDR1}"
   ]
