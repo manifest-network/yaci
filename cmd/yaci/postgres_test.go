@@ -60,8 +60,8 @@ func testExtractBlocksAndTxs(t *testing.T) {
 
 		transactions := getJSONResponse(t, RestTxEndpoint, nil)
 		require.NotEmpty(t, transactions)
-		// The number of transactions is 42 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
-		require.Len(t, transactions, 42)
+		// The number of transactions is 48 as defined in the `compose.yaml` file under the `manifest-ledger-tx` service
+		require.Len(t, transactions, 48)
 	})
 }
 
