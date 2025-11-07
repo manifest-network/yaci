@@ -16,7 +16,7 @@ Off-chain indexing of block & transaction data.
 
 ## Requirements
 
-- Go 1.24.6
+- Go 1.25.4
 - Docker & Docker Compose (optional)
 - CosmosSDK >= 0.50 (chain to index)
 
