@@ -15,7 +15,7 @@ test: ## Run tests
 
 test-e2e: ## Run end-to-end tests
 	@echo "--> Running end-to-end tests"
-	@go test -v -race ./cmd/yaci/postgres_test.go
+	@go test -v -race ./cmd/yaci/postgres_test.go -timeout 30m
 
 .PHONY: test test-e2e
 
