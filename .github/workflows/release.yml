@@ -20,7 +20,7 @@ jobs:
       packages: write   # if you also publish containers/packages via GoReleaser
 
     env:
-      GO_VERSION: '1.25.5'
+      GO_VERSION: '1.26.5'
       GORELEASER_VERSION: 'v1.26.2'
 
     steps:
